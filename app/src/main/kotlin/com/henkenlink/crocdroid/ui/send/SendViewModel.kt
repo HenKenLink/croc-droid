@@ -1,7 +1,9 @@
 package com.henkenlink.crocdroid.ui.send
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import com.henkenlink.crocdroid.service.TransferService
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,12 +15,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 import java.util.UUID
 import com.henkenlink.crocdroid.domain.model.HistoryEntry
 import com.henkenlink.crocdroid.domain.model.TransferType
 import com.henkenlink.crocdroid.domain.model.TransferState
+import com.henkenlink.crocdroid.data.util.FileUtil
+import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.flow.collect
+import java.io.File
+import java.io.FileOutputStream
 
 class SendViewModel(
     private val crocEngine: CrocEngine,
@@ -34,6 +39,58 @@ class SendViewModel(
 
     private val _selectedFileUris = MutableStateFlow<List<Uri>>(emptyList())
     val selectedFileUris: StateFlow<List<Uri>> = _selectedFileUris.asStateFlow()
+    
+    private var isMyTransfer = false
+    private var currentTempDir: File? = null
+
+    init {
+        // Correct history recording: observe state transitions
+        viewModelScope.launch {
+            crocEngine.transferState.collect { state ->
+                // Only record history if this ViewModel initiated the transfer
+                if (!isMyTransfer) return@collect
+                
+                when (state) {
+                    is TransferState.Success -> {
+                        val uris = _selectedFileUris.value
+                        settingsRepository.addHistoryEntry(HistoryEntry(
+                            id = UUID.randomUUID().toString(),
+                            type = TransferType.SEND,
+                            timestamp = System.currentTimeMillis(),
+                            fileName = if (uris.size == 1) "File/Folder" else "${uris.size} items",
+                            fileSize = 0,
+                            fileCount = uris.size,
+                            success = true
+                        ))
+                        cleanupTempDir()
+                        isMyTransfer = false
+                    }
+                    is TransferState.Error -> {
+                        settingsRepository.addHistoryEntry(HistoryEntry(
+                            id = UUID.randomUUID().toString(),
+                            type = TransferType.SEND,
+                            timestamp = System.currentTimeMillis(),
+                            fileName = "Transfer Failed",
+                            fileSize = 0,
+                            fileCount = _selectedFileUris.value.size,
+                            success = false,
+                            errorMessage = state.message
+                        ))
+                        cleanupTempDir()
+                        isMyTransfer = false
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    private fun cleanupTempDir() {
+        currentTempDir?.let {
+            if (it.exists()) it.deleteRecursively()
+        }
+        currentTempDir = null
+    }
 
     fun updateCustomCode(code: String) {
         _customCode.value = code
@@ -59,29 +116,30 @@ class SendViewModel(
 
         val tempDir = File(context.cacheDir, "temp_send_${System.currentTimeMillis()}")
         if (!tempDir.exists()) tempDir.mkdirs()
+        currentTempDir = tempDir
 
         viewModelScope.launch {
             crocEngine.resetState()
+            isMyTransfer = true
             try {
                 val filePaths = withContext(Dispatchers.IO) {
                     uris.mapNotNull { uri ->
-                        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                            var fileName = "transfer_file_${System.currentTimeMillis()}"
-                            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                                if (cursor.moveToFirst()) {
-                                    val displayNameIndex = cursor.getColumnIndex("_display_name")
-                                    if (displayNameIndex != -1) {
-                                        val name = cursor.getString(displayNameIndex)
-                                        if (!name.isNullOrBlank()) fileName = name
-                                    }
-                                }
-                            }
+                        val isDirectory = try {
+                            context.contentResolver.getType(uri) == null && DocumentFile.fromTreeUri(context, uri)?.isDirectory == true
+                        } catch (e: Exception) { false }
 
+                        if (isDirectory) {
+                            val dirName = DocumentFile.fromTreeUri(context, uri)?.name ?: "folder"
+                            val subDir = File(tempDir, dirName).apply { mkdirs() }
+                            if (FileUtil.copyDirectoryToFolder(context, uri, subDir)) {
+                                subDir.absolutePath
+                            } else null
+                        } else {
+                            val fileName = DocumentFile.fromSingleUri(context, uri)?.name ?: "file_${System.currentTimeMillis()}"
                             val destFile = File(tempDir, fileName)
-                            FileOutputStream(destFile).use { outputStream ->
-                                inputStream.copyTo(outputStream)
-                            }
-                            destFile.absolutePath
+                            if (FileUtil.copyUriToFile(context, uri, destFile)) {
+                                destFile.absolutePath
+                            } else null
                         }
                     }
                 }
@@ -98,36 +156,18 @@ class SendViewModel(
                     ?: settings.fixedSendCode.takeIf { it.isNotBlank() }
                     ?: crocEngine.generateCode()
 
+                context.startService(Intent(context, TransferService::class.java))
                 crocEngine.sendFiles(filePaths, code, settings)
-                
-                // Add to history on success
-                settingsRepository.addHistoryEntry(HistoryEntry(
-                    id = UUID.randomUUID().toString(),
-                    type = TransferType.SEND,
-                    timestamp = System.currentTimeMillis(),
-                    fileName = if (uris.size == 1) filePaths[0].substringAfterLast("/") else "${uris.size} items",
-                    fileSize = filePaths.sumOf { File(it).length() },
-                    fileCount = filePaths.size,
-                    success = true
-                ))
             } catch (e: Exception) {
-                // Add to history on error
-                settingsRepository.addHistoryEntry(HistoryEntry(
-                    id = UUID.randomUUID().toString(),
-                    type = TransferType.SEND,
-                    timestamp = System.currentTimeMillis(),
-                    fileName = "Unknown",
-                    fileSize = 0,
-                    fileCount = uris.size,
-                    success = false,
-                    errorMessage = e.message
-                ))
+                // actual history recorded via collector
             }
         }
     }
 
     fun cancelTransfer() {
         crocEngine.cancelTransfer()
+        cleanupTempDir()
+        isMyTransfer = false
     }
 
     fun resetState() {
@@ -142,7 +182,7 @@ class SendViewModel(
         ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return SendViewModel(crocEngine, settingsRepository, context) as T
+                return SendViewModel(crocEngine, settingsRepository, context.applicationContext) as T
             }
         }
     }

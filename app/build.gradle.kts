@@ -82,6 +82,9 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // DocumentFile (Scoped Storage)
+    implementation(libs.androidx.documentfile)
+
     // Compose Tooling (debug only)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

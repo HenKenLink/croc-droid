@@ -1,5 +1,7 @@
 package com.henkenlink.crocdroid.ui.settings
 
+import android.content.Context
+import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,26 +21,22 @@ import java.util.*
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    onNavigateToHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
-    val history by viewModel.historyState.collectAsStateWithLifecycle()
-
+    
     val folderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri?.let {
-            // Ideally we'd convert this to a real path, but for simplicity we'll use the path-like part if possible
-            // or just store the URI and handle it in ViewModel.
-            // Note: Simplification for now, using the path string.
-            val path = it.path ?: ""
-            // On some devices, the path is "/tree/primary:Documents". We want the real path "/storage/emulated/0/Documents"
-            // This is a complex conversion. For now, let's just use the URI string or a placeholder.
+            val contentResolver = viewModel.getContext().contentResolver
+            val takeFlags: Int = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            contentResolver.takePersistableUriPermission(it, takeFlags)
             viewModel.updateSettings(settings.copy(downloadPath = it.toString()))
         }
     }
-
-    val dateFormatter = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
 
     Column(
         modifier = modifier
@@ -136,55 +134,21 @@ fun SettingsScreen(
 
         HorizontalDivider()
 
-        // --- History ---
+        // --- History Support ---
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Transfer History", style = MaterialTheme.typography.titleMedium)
-            if (history.isNotEmpty()) {
-                TextButton(onClick = { viewModel.clearHistory() }) {
-                    Text("Clear All", color = MaterialTheme.colorScheme.error)
-                }
+            Text("History", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onNavigateToHistory) {
+                Text("View Full History")
             }
         }
-
-        if (history.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                Text("No history yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            history.forEach { entry ->
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        overlineContent = {
-                            Text("${entry.type} • ${dateFormatter.format(Date(entry.timestamp))}")
-                        },
-                        headlineContent = {
-                            Text(entry.fileName, style = MaterialTheme.typography.bodyLarge)
-                        },
-                        supportingContent = {
-                            val sizeText = if (entry.fileSize > 0) {
-                                String.format("%.2f MB", entry.fileSize / (1024.0 * 1024.0))
-                            } else {
-                                "${entry.fileCount} files"
-                            }
-                            Text(
-                                text = if (entry.success) "Success • $sizeText" else "Failed • ${entry.errorMessage ?: "Unknown error"}",
-                                color = if (entry.success) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                            )
-                        },
-                        trailingContent = {
-                            IconButton(onClick = { viewModel.deleteHistoryEntry(entry.id) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                    )
-                }
-            }
-        }
+        Text(
+            "Transfer history is stored locally and can be managed in the history screen.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

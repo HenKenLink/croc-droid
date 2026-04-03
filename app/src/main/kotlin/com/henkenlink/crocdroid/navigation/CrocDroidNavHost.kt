@@ -13,3 +13,6 @@ data object SettingsRoute
 
 @Serializable
 data object RelayRoute
+
+@Serializable
+data object HistoryRoute

@@ -1,8 +1,13 @@
 package com.henkenlink.crocdroid
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -35,6 +40,8 @@ import com.henkenlink.crocdroid.ui.send.SendScreen
 import com.henkenlink.crocdroid.ui.send.SendViewModel
 import com.henkenlink.crocdroid.ui.settings.SettingsScreen
 import com.henkenlink.crocdroid.ui.settings.SettingsViewModel
+import com.henkenlink.crocdroid.ui.history.HistoryScreen
+import com.henkenlink.crocdroid.ui.history.HistoryViewModel
 import com.henkenlink.crocdroid.ui.theme.CrocDroidTheme
 
 class MainActivity : ComponentActivity() {
@@ -43,8 +50,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val settingsRepository = SettingsRepository(this)
-        val crocEngine = CrocEngine()
+        val app = application as CrocDroidApp
+        val settingsRepository = app.settingsRepository
+        val crocEngine = app.crocEngine
+
+        requestNotificationPermission()
 
         setContent {
             CrocDroidTheme {
@@ -141,12 +151,31 @@ class MainActivity : ComponentActivity() {
                         }
                         composable<SettingsRoute> {
                             val viewModel: SettingsViewModel = viewModel(
-                                factory = SettingsViewModel.provideFactory(settingsRepository)
+                                factory = SettingsViewModel.provideFactory(settingsRepository, LocalContext.current)
                             )
-                            SettingsScreen(viewModel)
+                            SettingsScreen(viewModel, onNavigateToHistory = {
+                                navController.navigate(HistoryRoute)
+                            })
+                        }
+                        composable<HistoryRoute> {
+                            val viewModel: HistoryViewModel = viewModel(
+                                factory = HistoryViewModel.provideFactory(settingsRepository)
+                            )
+                            HistoryScreen(viewModel, onNavigateBack = {
+                                navController.popBackStack()
+                            })
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = Manifest.permission.POST_NOTIFICATIONS
+            if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(permission)
             }
         }
     }

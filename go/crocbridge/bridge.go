@@ -37,6 +37,7 @@ type TransferConfig struct {
 var (
 	cancelFuncs = make(map[string]context.CancelFunc)
 	cancelMutex sync.Mutex
+	chdirMutex  sync.Mutex // Global lock for Chdir operations
 )
 
 func registerCancel(id string, cancel context.CancelFunc) {
@@ -156,11 +157,15 @@ func SendFiles(id string, filePathsJSON string, code string, configJSON string, 
 			RelayAddress:  config.RelayAddress,
 			RelayPassword: config.RelayPassword,
 			DisableLocal:  config.DisableLocal,
+			Overwrite:     config.Overwrite,
 			Curve:         config.Curve,
 			HashAlgorithm: "xxhash",
 			RelayPorts:    []string{"9009", "9010", "9011", "9012", "9013"},
 			OnProgress:    setupProgress(cb),
 		}
+
+		chdirMutex.Lock()
+		defer chdirMutex.Unlock()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		registerCancel(id, cancel)
@@ -194,14 +199,6 @@ func SendFiles(id string, filePathsJSON string, code string, configJSON string, 
 // ReceiveFile receives files and saves them to saveDir.
 func ReceiveFile(id string, code string, saveDir string, configJSON string, cb CrocCallback) {
 	go func() {
-		origDir, _ := os.Getwd()
-		err := os.Chdir(saveDir)
-		if err != nil {
-			cb.OnError("Dir error: " + err.Error())
-			return
-		}
-		defer os.Chdir(origDir)
-
 		config := parseConfig(configJSON)
 		opts := croc.Options{
 			IsSender:      false,
@@ -225,21 +222,29 @@ func ReceiveFile(id string, code string, saveDir string, configJSON string, cb C
 					fileName = senderInfo.FilesToTransfer[0].Name
 				}
 
-				// Create channel and wait for Kotlin to respond
-				ch := make(chan bool)
+				// Create buffered channel to avoid blocking
+				ch := make(chan bool, 1)
 				receiveChannels.Store(id, ch)
 				defer receiveChannels.Delete(id)
 
-				// Call Kotlin callback
-				accepted := cb.OnFileOffer(fileName, totalSize, len(senderInfo.FilesToTransfer))
-				if !accepted {
-					return false
-				}
+				// Call Kotlin callback (non-blocking notification)
+				cb.OnFileOffer(fileName, totalSize, len(senderInfo.FilesToTransfer))
 
 				// Wait for true/false from AcceptReceive/RejectReceive via channel
 				return <-ch
 			},
 		}
+
+		chdirMutex.Lock()
+		defer chdirMutex.Unlock()
+
+		origDir, _ := os.Getwd()
+		err := os.Chdir(saveDir)
+		if err != nil {
+			cb.OnError("Dir error: " + err.Error())
+			return
+		}
+		defer os.Chdir(origDir)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		registerCancel(id, cancel)

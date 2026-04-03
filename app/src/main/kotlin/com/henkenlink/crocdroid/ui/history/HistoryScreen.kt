@@ -3,6 +3,7 @@ package com.henkenlink.crocdroid.ui.history
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
@@ -10,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -23,6 +23,7 @@ import java.util.*
 @Composable
 fun HistoryScreen(
     viewModel: HistoryViewModel,
+    onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val history by viewModel.historyState.collectAsStateWithLifecycle()
@@ -32,6 +33,11 @@ fun HistoryScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Transfer History") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 actions = {
                     if (history.isNotEmpty()) {
                         IconButton(onClick = { viewModel.clearAll() }) {
@@ -103,7 +109,7 @@ fun HistoryItem(
                     Text(
                         text = if (entry.type == TransferType.SEND) "Sent" else "Received",
                         style = MaterialTheme.typography.labelLarge,
-                        color = if (entry.type == TransferType.SEND) Color(0xFF4CAF50) else Color(0xFF2196F3),
+                        color = if (entry.type == TransferType.SEND) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.width(8.dp))
@@ -131,7 +137,7 @@ fun HistoryItem(
                 }
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Gray)
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.outline)
             }
         }
     }
