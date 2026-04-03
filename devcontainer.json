@@ -1,0 +1,20 @@
+{
+    "name": "Android Dev Environment (API 35 & Kotlin)",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "java.home": "/usr/lib/jvm/java-17-openjdk-amd64",
+                "kotlin.compiler.jvmTarget": "17"
+            },
+            "extensions": [
+                "vscjava.vscode-java-pack",
+                "JetBrains.j2k-vscode",
+                "fwcd.kotlin"
+            ]
+        }
+    },
+    "remoteUser": "vscode"
+}
