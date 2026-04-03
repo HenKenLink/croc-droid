@@ -4,9 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
+	"github.com/schollz/croc/v10/src/comm"
 	"github.com/schollz/croc/v10/src/croc"
 	"github.com/schollz/croc/v10/src/tcp"
 	"github.com/schollz/croc/v10/src/utils"
@@ -59,6 +63,34 @@ func CancelTransfer(id string) {
 	if cancel, exists := cancelFuncs[id]; exists {
 		cancel()
 		delete(cancelFuncs, id)
+	}
+}
+
+// closeClient uses reflection to access and close unexported connections in croc.Client.
+// This is necessary to avoid modifying the upstream croc source code.
+func closeClient(client *croc.Client) {
+	if client == nil {
+		return
+	}
+	// Note: We use reflect + unsafe because c.conn is unexported in github.com/schollz/croc
+	val := reflect.ValueOf(client).Elem()
+	field := val.FieldByName("conn")
+	if !field.IsValid() {
+		return
+	}
+
+	// Use unsafe to get the address of the unexported field
+	ptr := unsafe.Pointer(field.UnsafeAddr())
+	
+	// Create a pointer to the slice of pointers to comm.Comm
+	// The type []*comm.Comm is what croc.Client uses
+	connsPtr := (*[]*comm.Comm)(ptr)
+	conns := *connsPtr
+	
+	for _, c := range conns {
+		if c != nil {
+			c.Close() // Comm.Close() is exported
+		}
 	}
 }
 
@@ -176,6 +208,7 @@ func SendFiles(id string, filePathsJSON string, code string, configJSON string, 
 			cb.OnError("Init error: " + err.Error())
 			return
 		}
+		defer closeClient(client)
 
 		// Tell UI the code in case they want to show it BEFORE sending starts
 		cb.OnReady(client.Options.SharedSecret)
@@ -250,20 +283,42 @@ func ReceiveFile(id string, code string, saveDir string, configJSON string, cb C
 		registerCancel(id, cancel)
 		defer unregisterCancel(id)
 
-		client, err := croc.NewCtx(ctx, opts)
-		if err != nil {
-			cb.OnError("Init error: " + err.Error())
-			return
-		}
+		// Loop to retry and ignore the "ping" error (unexpected end of JSON input)
+		// which happens if the room is empty on the relay.
+		for i := 0; i < 60; i++ { // Try for ~60 seconds
+			client, err := croc.NewCtx(ctx, opts)
+			if err != nil {
+				cb.OnError("Init error: " + err.Error())
+				return
+			}
 
-		cb.OnReady(code)
+			cb.OnReady(code)
+			err = client.Receive()
+			
+			// Close connections using reflection to prevent leaks
+			closeClient(client)
 
-		err = client.Receive()
-		if err != nil {
+			if err == nil {
+				cb.OnSuccess()
+				return
+			}
+
+			// Check if it's the specific error caused by relay pings
+			if strings.Contains(err.Error(), "unexpected end of JSON input") || 
+			   strings.Contains(err.Error(), "room (secure channel) not ready") {
+				// Retry after a short delay
+				select {
+				case <-ctx.Done():
+					cb.OnError("Cancelled")
+					return
+				case <-time.After(1 * time.Second):
+					continue
+				}
+			}
+
+			// Otherwise, it's a real error
 			cb.OnError("Receive error: " + err.Error())
 			return
 		}
-
-		cb.OnSuccess()
 	}()
 }
