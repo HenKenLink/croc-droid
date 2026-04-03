@@ -31,7 +31,7 @@ fi
 
 # 5. Install core Android components via sdkmanager
 if [ ! -d "$ANDROID_HOME/platforms/android-36" ]; then
-    echo "Installing Platform-Tools, SDK 35/36, and Build-Tools 35/36..."
+    echo "Installing Platform-Tools, SDK 35/36, and Build-Tools..."
     yes | sdkmanager --sdk_root=$ANDROID_HOME --licenses
     sdkmanager --sdk_root=$ANDROID_HOME \
         "platform-tools" \
@@ -43,10 +43,37 @@ else
     echo "Core Android components already installed."
 fi
 
-# 6. Configure project local.properties (auto-detects project root)
+# 5b. Install NDK (Required for gomobile)
+NDK_VERSION="26.3.11579264"
+if [ ! -d "$ANDROID_HOME/ndk/$NDK_VERSION" ]; then
+    echo "Installing NDK $NDK_VERSION..."
+    sdkmanager --sdk_root=$ANDROID_HOME "ndk;$NDK_VERSION"
+else
+    echo "NDK $NDK_VERSION already installed."
+fi
+
+# 6. Configure project local.properties
 if [ -f "settings.gradle.kts" ]; then
     echo "Android project detected. Configuring local.properties..."
     echo "sdk.dir=$ANDROID_HOME" > local.properties
+    echo "ndk.dir=$ANDROID_HOME/ndk/$NDK_VERSION" >> local.properties
+fi
+
+# 7. Setup Go and Gomobile
+if ! command -v gomobile &> /dev/null; then
+    echo "Gomobile not found. Installing..."
+    go install golang.org/x/mobile/cmd/gomobile@latest
+    # Assuming GOBIN is in PATH; if not, link it to /usr/local/bin or similar if needed
+    # Codespace usually has $HOME/go/bin in PATH
+    GO_BIN_PATH=$(go env GOPATH)/bin
+    if [[ ":$PATH:" != *":$GO_BIN_PATH:"* ]]; then
+        echo "Adding $GO_BIN_PATH to .bashrc PATH..."
+        echo 'export PATH=$PATH:'"$GO_BIN_PATH" >> ~/.bashrc
+        export PATH=$PATH:$GO_BIN_PATH
+    fi
+    gomobile init -ndk $ANDROID_HOME/ndk/$NDK_VERSION
+else
+    echo "Gomobile is already installed."
 fi
 
 echo "-----------------------------------------------"

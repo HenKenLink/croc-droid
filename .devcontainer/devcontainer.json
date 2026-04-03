@@ -1,0 +1,29 @@
+{
+    "name": "Croc Droid Development",
+    "image": "mcr.microsoft.com/devcontainers/universal:2",
+    "features": {
+        "ghcr.io/devcontainers/features/go:1": {
+            "version": "latest"
+        },
+        "ghcr.io/devcontainers/features/java:1": {
+            "version": "21",
+            "jdkDistro": "ms"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "kotlin",
+                "vsc-kotlin",
+                "golang.go",
+                "google.android-studio-theme",
+                "naco-siren.gradle-language"
+            ]
+        }
+    },
+    "postCreateCommand": "chmod +x ./setup_sdk.sh && ./setup_sdk.sh",
+    "remoteEnv": {
+        "ANDROID_HOME": "${containerEnv:HOME}/android-sdk",
+        "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/android-sdk/cmdline-tools/latest/bin:${containerEnv:HOME}/android-sdk/platform-tools:${containerEnv:HOME}/go/bin"
+    }
+}
