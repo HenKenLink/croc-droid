@@ -1,0 +1,15 @@
+package com.henkenlink.crocdroid.navigation
+
+import kotlinx.serialization.Serializable
+
+@Serializable
+data object SendRoute
+
+@Serializable
+data object ReceiveRoute
+
+@Serializable
+data object SettingsRoute
+
+@Serializable
+data object RelayRoute

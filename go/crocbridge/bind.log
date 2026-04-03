@@ -1,0 +1,150 @@
+write /tmp/gomobile-work-273850601/src-android-amd64/go.mod
+write /tmp/gomobile-work-273850601/src-android-arm/go.mod
+write /tmp/gomobile-work-273850601/src-android-386/go.mod
+write /tmp/gomobile-work-273850601/src-android-arm64/go.mod
+go: found crocbridge in crocbridge v0.0.0-00010101000000-000000000000
+go: found crocbridge in crocbridge v0.0.0-00010101000000-000000000000
+unused github.com/chengxilo/virtualterm
+unused github.com/chzyer/readline
+unused github.com/cpuguy83/go-md2man/v2
+unused github.com/davecgh/go-spew
+unused github.com/google/go-cmp
+unused github.com/k0kubun/go-ansi
+unused github.com/mattn/go-isatty
+unused github.com/mattn/go-runewidth
+unused github.com/pmezard/go-difflib
+unused github.com/russross/blackfriday/v2
+unused github.com/schollz/cli/v2
+unused github.com/stretchr/objx
+unused github.com/stretchr/testify
+unused github.com/yuin/goldmark
+unused golang.org/x/exp/shiny
+unused golang.org/x/image
+unused golang.org/x/mod
+unused golang.org/x/sync
+unused golang.org/x/telemetry
+unused golang.org/x/text
+unused golang.org/x/tools
+unused golang.org/x/tools/go/expect
+unused golang.org/x/tools/go/packages/packagestest
+unused golang.org/x/xerrors
+unused gopkg.in/check.v1
+unused gopkg.in/yaml.v3
+go: found crocbridge in crocbridge v0.0.0-00010101000000-000000000000
+go: found crocbridge in crocbridge v0.0.0-00010101000000-000000000000
+unused github.com/chengxilo/virtualterm
+unused github.com/chzyer/readline
+unused github.com/cpuguy83/go-md2man/v2
+unused github.com/davecgh/go-spew
+unused github.com/google/go-cmp
+unused github.com/k0kubun/go-ansi
+unused github.com/mattn/go-isatty
+unused github.com/mattn/go-runewidth
+unused github.com/pmezard/go-difflib
+unused github.com/russross/blackfriday/v2
+unused github.com/schollz/cli/v2
+unused github.com/stretchr/objx
+unused github.com/stretchr/testify
+unused github.com/yuin/goldmark
+unused golang.org/x/exp/shiny
+unused golang.org/x/image
+unused golang.org/x/mod
+unused golang.org/x/sync
+unused golang.org/x/telemetry
+unused golang.org/x/text
+unused golang.org/x/tools
+unused golang.org/x/tools/go/expect
+unused golang.org/x/tools/go/packages/packagestest
+unused golang.org/x/xerrors
+unused gopkg.in/check.v1
+unused gopkg.in/yaml.v3
+unused github.com/chengxilo/virtualterm
+unused github.com/chzyer/readline
+unused github.com/cpuguy83/go-md2man/v2
+unused github.com/davecgh/go-spew
+unused github.com/google/go-cmp
+unused github.com/k0kubun/go-ansi
+unused github.com/mattn/go-isatty
+unused github.com/mattn/go-runewidth
+unused github.com/pmezard/go-difflib
+unused github.com/russross/blackfriday/v2
+unused github.com/schollz/cli/v2
+unused github.com/stretchr/objx
+unused github.com/stretchr/testify
+unused github.com/yuin/goldmark
+unused golang.org/x/exp/shiny
+unused golang.org/x/image
+unused golang.org/x/mod
+unused golang.org/x/sync
+unused golang.org/x/telemetry
+unused golang.org/x/text
+unused golang.org/x/tools
+unused golang.org/x/tools/go/expect
+unused golang.org/x/tools/go/packages/packagestest
+unused golang.org/x/xerrors
+unused gopkg.in/check.v1
+unused gopkg.in/yaml.v3
+unused github.com/chengxilo/virtualterm
+unused github.com/chzyer/readline
+unused github.com/cpuguy83/go-md2man/v2
+unused github.com/davecgh/go-spew
+unused github.com/google/go-cmp
+unused github.com/k0kubun/go-ansi
+unused github.com/mattn/go-isatty
+unused github.com/mattn/go-runewidth
+unused github.com/pmezard/go-difflib
+unused github.com/russross/blackfriday/v2
+unused github.com/schollz/cli/v2
+unused github.com/stretchr/objx
+unused github.com/stretchr/testify
+unused github.com/yuin/goldmark
+unused golang.org/x/exp/shiny
+unused golang.org/x/image
+unused golang.org/x/mod
+unused golang.org/x/sync
+unused golang.org/x/telemetry
+unused golang.org/x/text
+unused golang.org/x/tools
+unused golang.org/x/tools/go/expect
+unused golang.org/x/tools/go/packages/packagestest
+unused golang.org/x/xerrors
+unused gopkg.in/check.v1
+unused gopkg.in/yaml.v3
+runtime
+runtime
+runtime
+runtime
+sync
+internal/reflectlite
+internal/reflectlite
+sync
+sync
+internal/reflectlite
+internal/reflectlite
+sync
+errors
+errors
+iter
+internal/bisect
+iter
+io
+io
+internal/bisect
+errors
+iter
+internal/godebug
+io
+internal/bisect
+bytes
+internal/godebug
+bytes
+errors
+iter
+internal/godebug
+io
+internal/bisect
+bytes
+internal/oserror
+internal/oserror
+slices
+slices

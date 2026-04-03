@@ -1,0 +1,35 @@
+# --- Android/Gradle ---
+.gradle/
+/local.properties
+/build/
+/*/build/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aar
+*.jar
+!app/libs/*.jar
+!gradle-wrapper.jar
+
+# --- Go / gomobile ---
+# Ignore generated bridge artifacts
+go/crocbridge/crocbridge.aar
+go/crocbridge/crocbridge-sources.jar
+app/libs/crocbridge.aar
+app/libs/crocbridge-sources.jar
+
+# --- IDE / Tools ---
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# --- Project-specific ---
+# Ignore generated temporary task lists
+task.md
+
+# --- Credentials ---
+*.jks
+*.keystore
+google-services.json
