@@ -1,14 +1,31 @@
 package com.henkenlink.crocdroid.ui.receive
 
+import androidx.compose.animation.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.henkenlink.crocdroid.data.util.FileUtil
 import com.henkenlink.crocdroid.domain.model.TransferState
 
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun ReceiveScreen(
     viewModel: ReceiveViewModel,
@@ -17,85 +34,306 @@ fun ReceiveScreen(
     val transferState by viewModel.transferState.collectAsStateWithLifecycle()
     val code by viewModel.receiveCode.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        when (val state = transferState) {
-            is TransferState.Idle -> {
-                OutlinedTextField(
-                    value = code,
-                    onValueChange = { viewModel.updateReceiveCode(it) },
-                    label = { Text("Code") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { viewModel.receiveFile(code) },
-                    enabled = code.isNotBlank(),
+    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            AnimatedContent(
+                targetState = transferState,
+                transitionSpec = {
+                    fadeIn() + slideInVertically(initialOffsetY = { it / 4 }) togetherWith
+                            fadeOut() + slideOutVertically(targetOffsetY = { -it / 4 })
+                },
+                label = "ReceiveTransferStateAnimation"
+            ) { state ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = if (state is TransferState.Idle) Arrangement.Top else Arrangement.Center
                 ) {
-                    Text("Receive")
-                }
-            }
-            is TransferState.FileOffer -> {
-                AlertDialog(
-                    onDismissRequest = { viewModel.rejectTransfer() },
-                    title = { Text("Incoming Transfer") },
-                    text = {
-                        Column {
-                            Text("File: ${state.fileName}")
-                            Text("Size: ${state.fileSize} bytes")
-                            Text("Total Files: ${state.fileCount}")
+                    when (state) {
+                        is TransferState.Idle -> {
+                            Spacer(modifier = Modifier.height(48.dp))
+                            ReceiveHeroSection(
+                                icon = Icons.Outlined.CloudDownload,
+                                title = "Receive Files",
+                                subtitle = "Enter the code from the sender to connect"
+                            )
+                            Spacer(modifier = Modifier.height(48.dp))
+
+                            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                            OutlinedTextField(
+                                value = code,
+                                onValueChange = {
+                                    val sanitized = it.trim().replace(" ", "-")
+                                    viewModel.updateReceiveCode(sanitized)
+                                },
+                                label = { Text("Transfer Code") },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 20.sp,
+                                    textAlign = TextAlign.Center
+                                ),
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = {
+                                    Row {
+                                        if (code.isNotEmpty()) {
+                                            IconButton(onClick = { viewModel.updateReceiveCode("") }) {
+                                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                            }
+                                        }
+                                        IconButton(onClick = {
+                                            clipboardManager.getText()?.text?.let {
+                                                viewModel.updateReceiveCode(it.trim().replace(" ", "-"))
+                                            }
+                                        }) {
+                                            Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
+                                        }
+                                    }
+                                }
+                            )
+                            
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            Button(
+                                onClick = { viewModel.receiveFile(code) },
+                                enabled = code.isNotBlank(),
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.Download, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Receive", fontSize = 18.sp)
+                            }
                         }
-                    },
-                    confirmButton = {
-                        Button(onClick = { viewModel.acceptTransfer() }) {
-                            Text("Accept")
+                        is TransferState.FileOffer -> {
+                            ReceiveHeroSection(
+                                icon = Icons.Default.HelpOutline,
+                                title = "Incoming Transfer",
+                                subtitle = "Someone wants to send you files"
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Icon(
+                                        Icons.Default.InsertDriveFile,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(48.dp),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = state.fileName,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "${FileUtil.formatSize(state.fileSize)} • ${state.fileCount} file(s)",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(48.dp))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { viewModel.rejectTransfer() },
+                                    modifier = Modifier.weight(1f).height(56.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Decline")
+                                }
+                                Button(
+                                    onClick = { viewModel.acceptTransfer() },
+                                    modifier = Modifier.weight(1f).height(56.dp)
+                                ) {
+                                    Text("Accept")
+                                }
+                            }
                         }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { viewModel.rejectTransfer() }) {
-                            Text("Reject")
+                        is TransferState.Loading, is TransferState.WaitingForRecipient -> {
+                            ReceiveHeroSection(
+                                icon = Icons.Default.Sync,
+                                title = "Connecting...",
+                                subtitle = "Finding sender and negotiating secure connection"
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
+                            CircularProgressIndicator(modifier = Modifier.size(64.dp))
+                            Spacer(modifier = Modifier.height(48.dp))
+                            OutlinedButton(onClick = { viewModel.cancelTransfer() }) {
+                                Text("Cancel")
+                            }
+                        }
+                        is TransferState.Transferring -> {
+                            ReceiveHeroSection(
+                                icon = Icons.Outlined.CloudDownload,
+                                title = "Receiving Files",
+                                subtitle = if (state.totalFiles > 1) {
+                                    "File ${state.currentFileIndex + 1} of ${state.totalFiles}"
+                                } else {
+                                    "Transfer in progress"
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            val progress = if (state.totalBytes > 0) state.sentBytes.toFloat() / state.totalBytes else 0f
+                            
+                            Box(contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(
+                                    progress = { progress },
+                                    modifier = Modifier.size(160.dp),
+                                    strokeWidth = 12.dp,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
+                                Text(
+                                    text = "${(progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.headlineLarge
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            Text(
+                                text = state.currentFileName,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "${FileUtil.formatSize(state.sentBytes)} / ${FileUtil.formatSize(state.totalBytes)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                            
+                            Spacer(modifier = Modifier.height(48.dp))
+                            OutlinedButton(
+                                onClick = { viewModel.cancelTransfer() },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Cancel")
+                            }
+                        }
+                        is TransferState.Success -> {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                modifier = Modifier.size(96.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text("Received Successfully!", style = MaterialTheme.typography.headlineMedium)
+                            Spacer(modifier = Modifier.height(32.dp))
+                            
+                            if (state.receivedFiles.isNotEmpty()) {
+                                LazyColumn(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(state.receivedFiles.size) { index ->
+                                        val fileName = state.receivedFiles[index]
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                Spacer(modifier = Modifier.width(12.dp))
+                                                Text(
+                                                    text = fileName,
+                                                    modifier = Modifier.weight(1f),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                IconButton(onClick = { viewModel.openFile(fileName) }) {
+                                                    Icon(Icons.Default.OpenInNew, contentDescription = "Open")
+                                                }
+                                                IconButton(onClick = { viewModel.shareFile(fileName) }) {
+                                                    Icon(Icons.Default.Share, contentDescription = "Share")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { viewModel.resetState() }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Done")
+                            }
+                        }
+                        is TransferState.Error -> {
+                            Icon(
+                                imageVector = Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(96.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text("Transfer Failed", style = MaterialTheme.typography.headlineMedium)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = state.message,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
+                            Button(onClick = { viewModel.resetState() }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Try Again")
+                            }
                         }
                     }
-                )
-                // Also show a loading indicator in background
-                CircularProgressIndicator()
-                Text("Waiting for your confirmation...")
-            }
-            is TransferState.Loading, is TransferState.WaitingForRecipient -> {
-                CircularProgressIndicator()
-                Text("Connecting...")
-                Button(onClick = { viewModel.cancelTransfer() }) {
-                    Text("Cancel")
-                }
-            }
-            is TransferState.Transferring -> {
-                Text("Receiving...")
-                LinearProgressIndicator(
-                    progress = { if (state.totalBytes > 0) state.sentBytes.toFloat() / state.totalBytes else 0f },
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                )
-                Text("${state.sentBytes} / ${state.totalBytes} bytes")
-                Button(onClick = { viewModel.cancelTransfer() }) {
-                    Text("Cancel")
-                }
-            }
-            is TransferState.Success -> {
-                Text("Received Successfully!", style = MaterialTheme.typography.headlineMedium)
-                Button(onClick = { viewModel.resetState() }) {
-                    Text("Receive Another")
-                }
-            }
-            is TransferState.Error -> {
-                Text("Error: ${state.message}", color = MaterialTheme.colorScheme.error)
-                Button(onClick = { viewModel.resetState() }) {
-                    Text("Back")
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ReceiveHeroSection(icon: ImageVector, title: String, subtitle: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(text = title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = subtitle,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
     }
 }

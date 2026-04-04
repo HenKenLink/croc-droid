@@ -33,3 +33,5 @@ task.md
 *.jks
 *.keystore
 google-services.json
+
+external/crocgui

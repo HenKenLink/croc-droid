@@ -8,6 +8,9 @@
         "ghcr.io/devcontainers/features/java:1": {
             "version": "21",
             "jdkDistro": "ms"
+        },
+        "ghcr.io/devcontainers/features/sshd:1": {
+            "version": "latest"
         }
     },
     "customizations": {
@@ -21,7 +24,6 @@
             ]
         }
     },
-    "postCreateCommand": "chmod +x ./setup_sdk.sh && ./setup_sdk.sh",
     "remoteEnv": {
         "ANDROID_HOME": "${containerEnv:HOME}/android-sdk",
         "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/android-sdk/cmdline-tools/latest/bin:${containerEnv:HOME}/android-sdk/platform-tools:${containerEnv:HOME}/go/bin"

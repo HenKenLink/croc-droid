@@ -14,7 +14,7 @@ data class HistoryEntry(
     val timestamp: Long,
     val fileName: String,
     val fileSize: Long,
-    val fileCount: Int,
+    val fileCount: Long,
     val success: Boolean,
     val errorMessage: String? = null
 )

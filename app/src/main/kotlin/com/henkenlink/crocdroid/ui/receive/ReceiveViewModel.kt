@@ -18,7 +18,9 @@ import com.henkenlink.crocdroid.domain.model.TransferType
 import com.henkenlink.crocdroid.data.util.FileUtil
 import java.util.UUID
 import android.net.Uri
+import androidx.core.content.FileProvider
 import java.io.File
+import android.webkit.MimeTypeMap
 
 class ReceiveViewModel(
     private val crocEngine: CrocEngine,
@@ -58,9 +60,13 @@ class ReceiveViewModel(
                             id = UUID.randomUUID().toString(),
                             type = TransferType.RECEIVE,
                             timestamp = System.currentTimeMillis(),
-                            fileName = offer?.fileName ?: "Inbound Files", 
+                            fileName = if (state.receivedFiles.size > 1) {
+                                "${state.receivedFiles.size} files: ${state.receivedFiles.first()}..."
+                            } else {
+                                state.receivedFiles.firstOrNull() ?: offer?.fileName ?: "Inbound Files"
+                            }, 
                             fileSize = offer?.fileSize ?: 0,
-                            fileCount = offer?.fileCount ?: 1,
+                            fileCount = state.receivedFiles.size.toLong().takeIf { it > 0 } ?: offer?.fileCount?.toLong() ?: 1L,
                             success = true
                         ))
                         lastFileOffer = null
@@ -74,7 +80,7 @@ class ReceiveViewModel(
                                 val downloadUri = Uri.parse(settings.downloadPath)
                                 cacheDir.listFiles()?.forEach { file ->
                                     FileUtil.copyFilesToUri(context, file, downloadUri)
-                                    file.deleteRecursively() // Cleanup cache
+                                    // Removed immediate deletion to allow Open/Share in success screen
                                 }
                             }
                         }
@@ -136,6 +142,40 @@ class ReceiveViewModel(
 
     fun rejectTransfer() {
         crocEngine.rejectReceive()
+    }
+
+    fun openFile(fileName: String) {
+        val file = File(File(context.cacheDir, "receives"), fileName)
+        if (!file.exists()) return
+        
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
+        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+        
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(Intent.createChooser(intent, "Open with...").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+    }
+
+    fun shareFile(fileName: String) {
+        val file = File(File(context.cacheDir, "receives"), fileName)
+        if (!file.exists()) return
+        
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share file via...").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
     }
 
     fun resetState() {

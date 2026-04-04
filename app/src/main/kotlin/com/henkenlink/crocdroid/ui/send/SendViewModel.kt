@@ -59,7 +59,7 @@ class SendViewModel(
                             timestamp = System.currentTimeMillis(),
                             fileName = if (uris.size == 1) "File/Folder" else "${uris.size} items",
                             fileSize = 0,
-                            fileCount = uris.size,
+                            fileCount = uris.size.toLong(),
                             success = true
                         ))
                         cleanupTempDir()
@@ -72,7 +72,7 @@ class SendViewModel(
                             timestamp = System.currentTimeMillis(),
                             fileName = "Transfer Failed",
                             fileSize = 0,
-                            fileCount = _selectedFileUris.value.size,
+                            fileCount = _selectedFileUris.value.size.toLong(),
                             success = false,
                             errorMessage = state.message
                         ))
@@ -122,26 +122,33 @@ class SendViewModel(
             crocEngine.resetState()
             isMyTransfer = true
             try {
+                // Code resolution priority
+                val settings = settingsRepository.settingsState.value
+                val customCodeVal = _customCode.value
+                val code = customCodeVal.takeIf { it.isNotBlank() }
+                    ?: settings.fixedSendCode.takeIf { it.isNotBlank() }
+                    ?: crocEngine.generateCode()
+
                 val filePaths = withContext(Dispatchers.IO) {
-                    uris.mapNotNull { uri ->
-                        val isDirectory = try {
-                            context.contentResolver.getType(uri) == null && DocumentFile.fromTreeUri(context, uri)?.isDirectory == true
-                        } catch (e: Exception) { false }
+                    val paths = uris.mapNotNull { uri ->
+                        val docFile = DocumentFile.fromSingleUri(context, uri) ?: DocumentFile.fromTreeUri(context, uri)
+                        val isDirectory = docFile?.isDirectory == true
 
                         if (isDirectory) {
-                            val dirName = DocumentFile.fromTreeUri(context, uri)?.name ?: "folder"
+                            val dirName = docFile?.name ?: "folder"
                             val subDir = File(tempDir, dirName).apply { mkdirs() }
                             if (FileUtil.copyDirectoryToFolder(context, uri, subDir)) {
                                 subDir.absolutePath
                             } else null
                         } else {
-                            val fileName = DocumentFile.fromSingleUri(context, uri)?.name ?: "file_${System.currentTimeMillis()}"
+                            val fileName = docFile?.name ?: "file_${System.currentTimeMillis()}"
                             val destFile = File(tempDir, fileName)
                             if (FileUtil.copyUriToFile(context, uri, destFile)) {
                                 destFile.absolutePath
                             } else null
                         }
                     }
+                    paths
                 }
 
                 if (filePaths.isEmpty()) {
@@ -149,17 +156,32 @@ class SendViewModel(
                     return@launch
                 }
 
-                // Code resolution priority: UI input → fixedSendCode from settings → auto-generated
-                val settings = settingsRepository.settingsState.value
-                val customCodeVal = _customCode.value
-                val code = customCodeVal.takeIf { it.isNotBlank() }
-                    ?: settings.fixedSendCode.takeIf { it.isNotBlank() }
-                    ?: crocEngine.generateCode()
+                var finalPaths = filePaths
+                var isZip = false
+
+                // If any is a directory or multiple files, and auto-zip is on, zip them!
+                val hasDirectory = filePaths.any { File(it).isDirectory }
+                if (settings.autoZipFolders && (hasDirectory || filePaths.size > 1)) {
+                    withContext(Dispatchers.IO) {
+                        val zipName = if (filePaths.size == 1) {
+                            File(filePaths.first()).name + ".zip"
+                        } else {
+                            "archive_${System.currentTimeMillis()}.zip"
+                        }
+                        val zipFile = File(tempDir, zipName)
+                        com.henkenlink.crocdroid.data.util.CompressionUtil.zipFiles(
+                            filePaths.map { File(it) },
+                            zipFile
+                        )
+                        finalPaths = listOf(zipFile.absolutePath)
+                        isZip = true
+                    }
+                }
 
                 context.startService(Intent(context, TransferService::class.java))
-                crocEngine.sendFiles(filePaths, code, settings)
+                crocEngine.sendFiles(finalPaths, code, settings, isTempZip = isZip)
             } catch (e: Exception) {
-                // actual history recorded via collector
+                // handled by collector
             }
         }
     }

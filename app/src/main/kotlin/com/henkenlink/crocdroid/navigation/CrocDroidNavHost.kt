@@ -16,3 +16,6 @@ data object RelayRoute
 
 @Serializable
 data object HistoryRoute
+
+@Serializable
+data object DebugLogRoute
