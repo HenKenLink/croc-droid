@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
@@ -22,14 +24,14 @@ android {
         create("release") {
             val keystorePropertiesFile = file("keystore.properties")
             if (keystorePropertiesFile.exists()) {
-                val properties = java.util.Properties()
-                properties.load(keystorePropertiesFile.inputStream())
-                val storeFileProp = properties.getProperty("RELEASE_STORE_FILE")
-                if (!storeFileProp.isNullOrEmpty()) {
+                val props = Properties()
+                keystorePropertiesFile.inputStream().use { props.load(it) }
+                val storeFileProp = props.getProperty("RELEASE_STORE_FILE")
+                if (storeFileProp != null && storeFileProp.isNotEmpty()) {
                     storeFile = file(storeFileProp)
-                    storePassword = properties.getProperty("RELEASE_STORE_PASSWORD") ?: ""
-                    keyAlias = properties.getProperty("RELEASE_KEY_ALIAS") ?: ""
-                    keyPassword = properties.getProperty("RELEASE_KEY_PASSWORD") ?: ""
+                    storePassword = props.getProperty("RELEASE_STORE_PASSWORD") ?: ""
+                    keyAlias = props.getProperty("RELEASE_KEY_ALIAS") ?: ""
+                    keyPassword = props.getProperty("RELEASE_KEY_PASSWORD") ?: ""
                 }
             }
         }
