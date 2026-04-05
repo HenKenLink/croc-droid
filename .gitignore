@@ -35,3 +35,5 @@ task.md
 google-services.json
 
 external/crocgui
+
+*.jks

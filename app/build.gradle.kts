@@ -16,9 +16,22 @@ android {
         versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 
-        ndk {
-            abiFilters.add("arm64-v8a")
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val properties = java.util.Properties()
+                properties.load(keystorePropertiesFile.inputStream())
+                val storeFileProp = properties.getProperty("RELEASE_STORE_FILE")
+                if (!storeFileProp.isNullOrEmpty()) {
+                    storeFile = file(storeFileProp)
+                    storePassword = properties.getProperty("RELEASE_STORE_PASSWORD") ?: ""
+                    keyAlias = properties.getProperty("RELEASE_KEY_ALIAS") ?: ""
+                    keyPassword = properties.getProperty("RELEASE_KEY_PASSWORD") ?: ""
+                }
+            }
         }
     }
 
@@ -26,6 +39,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -35,6 +49,9 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            ndk {
+                abiFilters.add("arm64-v8a")
+            }
         }
     }
 

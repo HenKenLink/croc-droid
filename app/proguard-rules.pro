@@ -31,3 +31,6 @@
 -keepclasseswithmembers class com.henkenlink.crocdroid.** {
     kotlinx.serialization.KSerializer serializer(...);
 }
+
+# Keep Go Bridge (gomobile)
+-keep class crocbridge.** { *; }
