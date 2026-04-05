@@ -1,4 +1,4 @@
-name: Android Build
+name: Android Debug CI
 
 on:
   push:
@@ -7,14 +7,14 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build-debug:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # 获取 external/croc 子模块（如果存在）
+        submodules: recursive
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -37,7 +37,8 @@ jobs:
         export PATH=$PATH:$(go env GOPATH)/bin
         gomobile init
 
-    - name: Build Go Bridge (AAR)
+    - name: Build Go Bridge (Debug)
+      # 只编 arm64 加快速度
       run: |
         export PATH=$PATH:$(go env GOPATH)/bin
         export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.3.11579264
@@ -49,10 +50,10 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Debug APK with Gradle
+    - name: Build Debug APK
       run: ./gradlew assembleDebug
 
-    - name: Upload APK Artifact
+    - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug

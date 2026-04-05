@@ -9,6 +9,7 @@ plugins {
 android {
     namespace = "com.henkenlink.crocdroid"
     compileSdk = 36
+    ndkVersion = "26.3.11579264"
 
     defaultConfig {
         applicationId = "com.henkenlink.crocdroid"
