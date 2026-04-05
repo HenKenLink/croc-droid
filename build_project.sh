@@ -51,6 +51,7 @@ fi
 if [ "$REBUILD_AAR" = true ]; then
     cd go/crocbridge
     rm -f crocbridge.aar
+    /go/bin/gomobile init
     /go/bin/gomobile bind -target=android/arm64 -androidapi 26 ./
     mkdir -p ../../app/libs
     cp crocbridge.aar ../../app/libs/
