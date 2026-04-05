@@ -5,10 +5,21 @@ set -e
 # You can override these in a local 'keystore.properties' file
 KEYSTORE_PROPERTIES="app/keystore.properties"
 
-# 1. SDK/NDK Environment
+# 1. Environment Setup & Secret Injection
 export ANDROID_HOME=$HOME/android-sdk
 export ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.3.11579264
 export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
+
+# --- Secret Injection for Codespaces ---
+# If running in Codespace and secrets are available, inject them
+if [ ! -z "$RELEASE_KEYSTORE_BASE64" ]; then
+    echo "Secrets detected. Injecting signing configuration..."
+    echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > app/release.jks
+    echo "RELEASE_STORE_FILE=release.jks" > "$KEYSTORE_PROPERTIES"
+    echo "RELEASE_STORE_PASSWORD=$RELEASE_STORE_PASSWORD" >> "$KEYSTORE_PROPERTIES"
+    echo "RELEASE_KEY_ALIAS=$RELEASE_KEY_ALIAS" >> "$KEYSTORE_PROPERTIES"
+    echo "RELEASE_KEY_PASSWORD=$RELEASE_KEY_PASSWORD" >> "$KEYSTORE_PROPERTIES"
+fi
 
 echo "--------------------------------------"
 echo "Step 1: Building Multi-Arch Go Bridge"
@@ -17,11 +28,7 @@ echo "--------------------------------------"
 cd go/crocbridge
 rm -f crocbridge.aar
 # Build for all common Android architectures:
-# arm: 32-bit (armeabi-v7a)
-# arm64: 64-bit (arm64-v8a)
-# 386: x86
-# amd64: x86_64
-/go/bin/gomobile bind -target=android/arm,android/arm64,android/386,android/amd64 -androidapi 26 ./
+gomobile bind -target=android/arm,android/arm64,android/386,android/amd64 -androidapi 26 ./
 
 mkdir -p ../../app/libs
 cp crocbridge.aar ../../app/libs/
