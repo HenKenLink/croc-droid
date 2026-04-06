@@ -21,7 +21,6 @@ import java.util.*
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
-    onNavigateToHistory: () -> Unit,
     onNavigateToLogs: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -274,20 +273,7 @@ fun SettingsScreen(
                 }
             }
 
-            // --- History ---
-            Button(
-                onClick = onNavigateToHistory,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer, 
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            ) {
-                Icon(Icons.Default.History, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("View Transfer History")
-            }
-            
+
             Spacer(Modifier.height(32.dp))
         }
     }

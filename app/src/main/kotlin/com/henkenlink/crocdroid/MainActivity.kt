@@ -48,8 +48,6 @@ import com.henkenlink.crocdroid.ui.settings.SettingsScreen
 import com.henkenlink.crocdroid.ui.settings.SettingsViewModel
 import com.henkenlink.crocdroid.ui.debug.DebugLogScreen
 import com.henkenlink.crocdroid.ui.debug.DebugLogViewModel
-import com.henkenlink.crocdroid.ui.history.HistoryScreen
-import com.henkenlink.crocdroid.ui.history.HistoryViewModel
 import com.henkenlink.crocdroid.ui.theme.CrocDroidTheme
 
 class MainActivity : ComponentActivity() {
@@ -183,17 +181,8 @@ class MainActivity : ComponentActivity() {
                             )
                             SettingsScreen(
                                 viewModel = viewModel,
-                                onNavigateToHistory = { navController.navigate(HistoryRoute) },
                                 onNavigateToLogs = { navController.navigate(DebugLogRoute) }
                             )
-                        }
-                        composable<HistoryRoute> {
-                            val viewModel: HistoryViewModel = viewModel(
-                                factory = HistoryViewModel.provideFactory(settingsRepository)
-                            )
-                            HistoryScreen(viewModel, onNavigateBack = {
-                                navController.popBackStack()
-                            })
                         }
                         composable<DebugLogRoute> {
                             val debugLogViewModel: DebugLogViewModel = viewModel(

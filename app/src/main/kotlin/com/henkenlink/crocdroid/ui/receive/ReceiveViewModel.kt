@@ -13,8 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.henkenlink.crocdroid.domain.model.TransferState
-import com.henkenlink.crocdroid.domain.model.HistoryEntry
-import com.henkenlink.crocdroid.domain.model.TransferType
+import com.henkenlink.crocdroid.domain.model.ReceiveHistoryEntry
 import com.henkenlink.crocdroid.data.util.FileUtil
 import java.util.UUID
 import android.net.Uri
@@ -38,6 +37,9 @@ class ReceiveViewModel(
     private var lastFileOffer: TransferState.FileOffer? = null
 
     init {
+        // Prune any missing files from history on startup
+        settingsRepository.pruneReceiveHistory()
+
         // Pre-fill from fixed receive code if configured
         val fixedCode = settingsRepository.settingsState.value.fixedReceiveCode
         if (fixedCode.isNotBlank()) {
@@ -56,18 +58,20 @@ class ReceiveViewModel(
                     }
                     is TransferState.Success -> {
                         val offer = lastFileOffer
-                        settingsRepository.addHistoryEntry(HistoryEntry(
+                        val cacheDir = File(context.cacheDir, "receives")
+                        val filePaths = state.receivedFiles.map { File(cacheDir, it).absolutePath }
+                        
+                        settingsRepository.addReceiveHistoryEntry(ReceiveHistoryEntry(
                             id = UUID.randomUUID().toString(),
-                            type = TransferType.RECEIVE,
                             timestamp = System.currentTimeMillis(),
                             fileName = if (state.receivedFiles.size > 1) {
                                 "${state.receivedFiles.size} files: ${state.receivedFiles.first()}..."
                             } else {
                                 state.receivedFiles.firstOrNull() ?: offer?.fileName ?: "Inbound Files"
                             }, 
+                            filePaths = filePaths,
                             fileSize = offer?.fileSize ?: 0,
-                            fileCount = state.receivedFiles.size.toLong().takeIf { it > 0 } ?: offer?.fileCount?.toLong() ?: 1L,
-                            success = true
+                            fileCount = state.receivedFiles.size.toLong().takeIf { it > 0 } ?: offer?.fileCount?.toLong() ?: 1L
                         ))
                         lastFileOffer = null
 
@@ -76,7 +80,6 @@ class ReceiveViewModel(
                         if (settings.downloadPath.isNotBlank()) {
                             // MOVE TO IO THREAD
                             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                val cacheDir = File(context.cacheDir, "receives")
                                 val downloadUri = Uri.parse(settings.downloadPath)
                                 cacheDir.listFiles()?.forEach { file ->
                                     FileUtil.copyFilesToUri(context, file, downloadUri)
@@ -87,16 +90,6 @@ class ReceiveViewModel(
                         isMyTransfer = false
                     }
                     is TransferState.Error -> {
-                        settingsRepository.addHistoryEntry(HistoryEntry(
-                            id = UUID.randomUUID().toString(),
-                            type = TransferType.RECEIVE,
-                            timestamp = System.currentTimeMillis(),
-                            fileName = "Inbound Failed",
-                            fileSize = 0,
-                            fileCount = 0,
-                            success = false,
-                            errorMessage = state.message
-                        ))
                         isMyTransfer = false
                     }
                     else -> {}
@@ -117,9 +110,6 @@ class ReceiveViewModel(
                 // Always receive to internal cache first because croc needs direct File access
                 val saveDir = File(context.cacheDir, "receives")
                 if (!saveDir.exists()) {
-                    saveDir.mkdirs()
-                } else {
-                    saveDir.deleteRecursively()
                     saveDir.mkdirs()
                 }
 
@@ -166,6 +156,50 @@ class ReceiveViewModel(
         val file = File(File(context.cacheDir, "receives"), fileName)
         if (!file.exists()) return
         
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "*/*"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(Intent.createChooser(intent, "Share file via...").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+    }
+
+    val receiveHistoryState: StateFlow<List<ReceiveHistoryEntry>> = settingsRepository.receiveHistoryState
+
+    fun deleteHistoryEntry(id: String) {
+        settingsRepository.removeReceiveHistoryEntry(id)
+    }
+
+    fun clearHistory() {
+        settingsRepository.clearReceiveHistory()
+    }
+
+    fun openHistoryFile(filePath: String) {
+        val file = File(filePath)
+        if (!file.exists()) return
+
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val extension = MimeTypeMap.getFileExtensionFromUrl(uri.toString())
+        val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "*/*"
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, mimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(Intent.createChooser(intent, "Open with...").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        })
+    }
+
+    fun shareHistoryFile(filePath: String) {
+        val file = File(filePath)
+        if (!file.exists()) return
+
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "*/*"

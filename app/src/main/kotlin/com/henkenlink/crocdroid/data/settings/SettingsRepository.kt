@@ -83,5 +83,82 @@ class SettingsRepository(private val context: Context) {
         }
         _historyState.value = emptyList()
     }
+
+    // Receive History management
+    private val _receiveHistoryState = MutableStateFlow(loadReceiveHistory())
+    val receiveHistoryState: StateFlow<List<com.henkenlink.crocdroid.domain.model.ReceiveHistoryEntry>> = _receiveHistoryState.asStateFlow()
+
+    private fun loadReceiveHistory(): List<com.henkenlink.crocdroid.domain.model.ReceiveHistoryEntry> {
+        val jsonString = prefs.getString("receive_history_json", null)
+        return if (jsonString != null) {
+            try {
+                Json.decodeFromString(jsonString)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    fun addReceiveHistoryEntry(entry: com.henkenlink.crocdroid.domain.model.ReceiveHistoryEntry) {
+        val currentHistory = _receiveHistoryState.value.toMutableList()
+        currentHistory.add(0, entry) // Newest first
+        // Limit history to 200 entries
+        val limitedHistory = currentHistory.take(200)
+        
+        val jsonString = Json.encodeToString(limitedHistory)
+        prefs.edit {
+            putString("receive_history_json", jsonString)
+        }
+        _receiveHistoryState.value = limitedHistory
+    }
+
+    fun removeReceiveHistoryEntry(id: String) {
+        val entry = _receiveHistoryState.value.find { it.id == id }
+        entry?.filePaths?.forEach { filePath ->
+            val file = java.io.File(filePath)
+            // Only delete if it's in our app's cache or data directory
+            if (file.exists() && (file.absolutePath.startsWith(context.cacheDir.absolutePath) || file.absolutePath.startsWith(context.filesDir.absolutePath))) {
+                file.delete()
+            }
+        }
+
+        val updatedHistory = _receiveHistoryState.value.filter { it.id != id }
+        val jsonString = Json.encodeToString(updatedHistory)
+        prefs.edit {
+            putString("receive_history_json", jsonString)
+        }
+        _receiveHistoryState.value = updatedHistory
+    }
+
+    fun clearReceiveHistory() {
+        _receiveHistoryState.value.forEach { entry ->
+            entry.filePaths.forEach { filePath ->
+                val file = java.io.File(filePath)
+                if (file.exists() && (file.absolutePath.startsWith(context.cacheDir.absolutePath) || file.absolutePath.startsWith(context.filesDir.absolutePath))) {
+                    file.delete()
+                }
+            }
+        }
+        prefs.edit {
+            remove("receive_history_json")
+        }
+        _receiveHistoryState.value = emptyList()
+    }
+
+    fun pruneReceiveHistory() {
+        val currentHistory = _receiveHistoryState.value
+        val validHistory = currentHistory.filter { entry ->
+            entry.filePaths.any { java.io.File(it).exists() }
+        }
+        if (currentHistory.size != validHistory.size) {
+            val jsonString = Json.encodeToString(validHistory)
+            prefs.edit {
+                putString("receive_history_json", jsonString)
+            }
+            _receiveHistoryState.value = validHistory
+        }
+    }
 }
 

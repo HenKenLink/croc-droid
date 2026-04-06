@@ -18,3 +18,13 @@ data class HistoryEntry(
     val success: Boolean,
     val errorMessage: String? = null
 )
+
+@Serializable
+data class ReceiveHistoryEntry(
+    val id: String,
+    val timestamp: Long,
+    val fileName: String,
+    val filePaths: List<String>,
+    val fileSize: Long,
+    val fileCount: Long
+)
