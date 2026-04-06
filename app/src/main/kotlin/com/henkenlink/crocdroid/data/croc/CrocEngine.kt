@@ -221,7 +221,7 @@ class CrocEngine {
     fun cancelTransfer() {
         currentTransferId?.let {
             Crocbridge.cancelTransfer(it)
-            _transferState.value = TransferState.Error("Transfer cancelled")
+            _transferState.value = TransferState.Idle
             currentTransferId = null
         }
     }

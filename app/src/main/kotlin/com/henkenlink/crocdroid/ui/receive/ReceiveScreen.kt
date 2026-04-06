@@ -2,6 +2,8 @@ package com.henkenlink.crocdroid.ui.receive
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.*
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,8 +58,12 @@ fun ReceiveScreen(
                 targetState = transferState,
                 contentKey = { it::class },
                 transitionSpec = {
-                    fadeIn() + slideInVertically(initialOffsetY = { it / 4 }) togetherWith
-                            fadeOut() + slideOutVertically(targetOffsetY = { -it / 4 })
+                    (fadeIn(animationSpec = tween(150)) +
+                        slideInVertically(animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)) { it / 6 }
+                    ) togetherWith (
+                        fadeOut(animationSpec = tween(100)) +
+                        slideOutVertically(animationSpec = tween(100)) { -it / 6 }
+                    )
                 },
                 label = "ReceiveTransferStateAnimation"
             ) { state ->
@@ -120,7 +126,7 @@ fun ReceiveScreen(
                                         setPrompt("Scan a croc transfer QR code")
                                         setBeepEnabled(false)
                                         setBarcodeImageEnabled(true)
-                                        setOrientationLocked(false)
+                                        setOrientationLocked(true)
                                     }
                                     scanLauncher.launch(options)
                                 },
