@@ -115,4 +115,8 @@ dependencies {
 
     // Go Bridge
     implementation(files("libs/crocbridge.aar"))
+
+    // ZXing (QR Code)
+    implementation(libs.zxing.core)
+    implementation(libs.zxing.android.embedded)
 }

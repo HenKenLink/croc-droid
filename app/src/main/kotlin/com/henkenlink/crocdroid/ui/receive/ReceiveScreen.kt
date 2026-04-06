@@ -1,5 +1,6 @@
 package com.henkenlink.crocdroid.ui.receive
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -24,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.henkenlink.crocdroid.data.util.FileUtil
 import com.henkenlink.crocdroid.domain.model.TransferState
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +37,15 @@ fun ReceiveScreen(
     val transferState by viewModel.transferState.collectAsStateWithLifecycle()
     val code by viewModel.receiveCode.collectAsStateWithLifecycle()
 
+    val scanLauncher = rememberLauncherForActivityResult(
+        contract = ScanContract(),
+    ) { result ->
+        result.contents?.let { scannedCode ->
+            val sanitized = scannedCode.trim().replace(" ", "-")
+            viewModel.updateReceiveCode(sanitized)
+        }
+    }
+
     Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
         Box(
             modifier = Modifier
@@ -42,6 +54,7 @@ fun ReceiveScreen(
         ) {
             AnimatedContent(
                 targetState = transferState,
+                contentKey = { it::class },
                 transitionSpec = {
                     fadeIn() + slideInVertically(initialOffsetY = { it / 4 }) togetherWith
                             fadeOut() + slideOutVertically(targetOffsetY = { -it / 4 })
@@ -81,7 +94,7 @@ fun ReceiveScreen(
                                 ),
                                 modifier = Modifier.fillMaxWidth(),
                                 trailingIcon = {
-                                    Row {
+                                    Row(modifier = Modifier.padding(end = 4.dp)) {
                                         if (code.isNotEmpty()) {
                                             IconButton(onClick = { viewModel.updateReceiveCode("") }) {
                                                 Icon(Icons.Default.Clear, contentDescription = "Clear")
@@ -98,7 +111,27 @@ fun ReceiveScreen(
                                 }
                             )
                             
-                            Spacer(modifier = Modifier.height(32.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            OutlinedButton(
+                                onClick = {
+                                    val options = ScanOptions().apply {
+                                        setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                        setPrompt("Scan a croc transfer QR code")
+                                        setBeepEnabled(false)
+                                        setBarcodeImageEnabled(true)
+                                        setOrientationLocked(false)
+                                    }
+                                    scanLauncher.launch(options)
+                                },
+                                modifier = Modifier.fillMaxWidth().height(56.dp)
+                            ) {
+                                Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Scan QR Code")
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
                             
                             Button(
                                 onClick = { viewModel.receiveFile(code) },

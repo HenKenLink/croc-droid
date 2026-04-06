@@ -60,6 +60,7 @@ fun SendScreen(
         ) {
             AnimatedContent(
                 targetState = transferState,
+                contentKey = { it::class },
                 transitionSpec = {
                     fadeIn() + slideInVertically(initialOffsetY = { it / 4 }) togetherWith
                             fadeOut() + slideOutVertically(targetOffsetY = { -it / 4 })
@@ -198,6 +199,7 @@ fun SendScreen(
                             }
                         }
                         is TransferState.WaitingForRecipient -> {
+                            var showQrDialog by remember { mutableStateOf(false) }
                             val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
                             HeroSection(
                                 icon = Icons.Default.Sync,
@@ -208,26 +210,54 @@ fun SendScreen(
                             
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-                                shape = MaterialTheme.shapes.large
+                                shape = MaterialTheme.shapes.extraLarge,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Column(
+                                    modifier = Modifier.padding(24.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
                                         text = state.code,
-                                        style = MaterialTheme.typography.displaySmall,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        style = MaterialTheme.typography.headlineMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    IconButton(
-                                        onClick = { clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(state.code)) },
-                                        modifier = Modifier.background(MaterialTheme.colorScheme.primary, CircleShape)
+                                    
+                                    Spacer(modifier = Modifier.height(24.dp))
+                                    
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = MaterialTheme.colorScheme.onPrimary)
+                                        FilledTonalButton(
+                                            onClick = { clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(state.code)) },
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Copy Code")
+                                        }
+                                        
+                                        FilledTonalIconButton(
+                                            onClick = { showQrDialog = true }
+                                        ) {
+                                            Icon(Icons.Default.QrCode, contentDescription = "Show QR Code")
+                                        }
                                     }
                                 }
                             }
+                            
+                            if (showQrDialog) {
+                                QrCodeDialog(
+                                    code = state.code,
+                                    onDismiss = { showQrDialog = false }
+                                )
+                            }
+                            
                             Spacer(modifier = Modifier.height(48.dp))
                             OutlinedButton(onClick = { viewModel.cancelTransfer() }) {
                                 Text("Cancel Transfer")
