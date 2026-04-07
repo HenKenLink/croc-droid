@@ -60,10 +60,23 @@ fun SettingsScreen(
             // --- Connection / Relay ---
             SettingsCard(title = "Relay & Connection", icon = Icons.Default.Router) {
                 // Relay configuration selector
-                Text(
-                    text = "Active Relay Configuration",
-                    style = MaterialTheme.typography.titleSmall
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Active Relay Configuration",
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                    IconButton(onClick = onNavigateToRelayConfig) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "Manage Configs",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 
                 Spacer(Modifier.height(12.dp))
                 
@@ -71,86 +84,77 @@ fun SettingsScreen(
                 val relayConfigs by viewModel.relayConfigsState.collectAsStateWithLifecycle()
                 var expanded by remember { mutableStateOf(false) }
                 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    onClick = { expanded = true }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Box {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        onClick = { expanded = true }
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = selectedConfig?.name ?: "None",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = selectedConfig?.relayAddress ?: "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "Select config",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.fillMaxWidth(0.9f)
-                ) {
-                    relayConfigs.forEach { config ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(
-                                        text = config.name,
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
-                                    Text(
-                                        text = config.relayAddress,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            },
-                            onClick = {
-                                viewModel.selectRelayConfig(config.id)
-                                expanded = false
-                            },
-                            leadingIcon = {
-                                if (config.id == selectedConfig?.id) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = selectedConfig?.name ?: "None",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = selectedConfig?.relayAddress ?: "",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        )
-                    }
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text("Manage Configs") },
-                        onClick = {
-                            expanded = false
-                            onNavigateToRelayConfig()
-                        },
-                        leadingIcon = {
-                            Icon(Icons.Default.Settings, contentDescription = null)
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = "Select config",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    )
+                    }
+                    
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.fillMaxWidth(0.9f)
+                    ) {
+                        relayConfigs.forEach { config ->
+                            DropdownMenuItem(
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = config.name,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Text(
+                                            text = config.relayAddress,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                },
+                                onClick = {
+                                    viewModel.selectRelayConfig(config.id)
+                                    expanded = false
+                                },
+                                leadingIcon = {
+                                    if (config.id == selectedConfig?.id) {
+                                        Icon(
+                                            Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
                 
                 Spacer(Modifier.height(12.dp))
