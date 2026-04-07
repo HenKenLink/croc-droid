@@ -84,7 +84,7 @@ fun SettingsScreen(
                 val relayConfigs by viewModel.relayConfigsState.collectAsStateWithLifecycle()
                 var expanded by remember { mutableStateOf(false) }
                 
-                Box {
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -122,7 +122,7 @@ fun SettingsScreen(
                     DropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        modifier = Modifier.fillMaxWidth(0.9f)
+                        modifier = Modifier.widthIn(min = 200.dp, max = 400.dp)
                     ) {
                         relayConfigs.forEach { config ->
                             DropdownMenuItem(
