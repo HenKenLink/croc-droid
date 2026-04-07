@@ -46,7 +46,6 @@
         <activity
             android:name=".ui.receive.PortraitCaptureActivity"
             android:screenOrientation="portrait"
-            android:stateNotLostOnOrientationChange="true"
             android:theme="@style/zxing_CaptureTheme" />
 
         <service
