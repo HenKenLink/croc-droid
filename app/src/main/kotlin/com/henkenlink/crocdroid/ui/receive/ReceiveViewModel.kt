@@ -122,8 +122,8 @@ class ReceiveViewModel(
     }
 
     fun cancelTransfer() {
-        crocEngine.cancelTransfer()
         isMyTransfer = false
+        crocEngine.cancelTransfer()
     }
 
     fun acceptTransfer() {

@@ -50,7 +50,9 @@ class CrocEngine {
         settings: CrocSettings,
         isTempZip: Boolean = false
     ) {
+        android.util.Log.d("CrocEngine", "sendFiles called: paths=${filePaths.size}, code=$code")
         withContext(Dispatchers.IO) {
+            android.util.Log.d("CrocEngine", "sendFiles: in IO context, setting Loading state")
             _transferState.value = TransferState.Loading
             
             val config = TransferConfig(
@@ -77,8 +79,10 @@ class CrocEngine {
             val transferId = UUID.randomUUID().toString()
             currentTransferId = transferId
 
+            android.util.Log.d("CrocEngine", "sendFiles: calling Crocbridge.sendFiles with transferId=$transferId")
             Crocbridge.sendFiles(transferId, filePathsJson, code, configJson, object : CrocCallback {
                 override fun onReady(p0: String?) {
+                    android.util.Log.d("CrocEngine", "onReady called: code=$p0")
                     if (currentTransferId != transferId) return
                     val actualCode = p0 ?: code
                     _transferState.value = TransferState.WaitingForRecipient(actualCode)
@@ -126,6 +130,7 @@ class CrocEngine {
 
                 override fun onError(errStr: String?) {
                     if (currentTransferId != transferId) return
+                    android.util.Log.d("CrocEngine", "Send onError: error=$errStr, transferId=$transferId")
                     _transferState.value = TransferState.Error(errStr ?: "Unknown error occurred")
                     currentTransferId = null
                 }
@@ -219,6 +224,7 @@ class CrocEngine {
 
                 override fun onError(errStr: String?) {
                     if (currentTransferId != transferId) return
+                    android.util.Log.d("CrocEngine", "Receive onError: error=$errStr, transferId=$transferId")
                     _transferState.value = TransferState.Error(errStr ?: "Unknown error occurred")
                     currentTransferId = null
                 }
@@ -230,10 +236,18 @@ class CrocEngine {
     fun clearDebugLog() = Crocbridge.clearDebugLog()
 
     fun cancelTransfer() {
-        currentTransferId?.let {
-            Crocbridge.cancelTransfer(it)
+        currentTransferId?.let { id ->
+            android.util.Log.d("CrocEngine", "cancelTransfer called for id=$id")
+            
+            // Immediately reset state - don't wait for Go layer callback
             _transferState.value = TransferState.Idle
             currentTransferId = null
+            
+            android.util.Log.d("CrocEngine", "State immediately reset to Idle, calling Crocbridge.cancelTransfer")
+            
+            // Tell Go layer to cancel and clean up resources
+            Crocbridge.cancelTransfer(id)
+            android.util.Log.d("CrocEngine", "Crocbridge.cancelTransfer returned")
         }
     }
 

@@ -1,11 +1,40 @@
 #!/bin/bash
 set -e
 
-# 设置强制重新编译标志
+# 设置默认值
 FORCE_REBUILD=false
-if [[ "$1" == "--force" ]]; then
-    FORCE_REBUILD=true
-fi
+BUILD_TYPE="minified"  # 默认构建minified版本（最小化）
+
+# 解析参数
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --force)
+            FORCE_REBUILD=true
+            shift
+            ;;
+        --release)
+            BUILD_TYPE="release"
+            shift
+            ;;
+        --debug)
+            BUILD_TYPE="debug"
+            shift
+            ;;
+        --minified)
+            BUILD_TYPE="minified"
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [--force] [--release|--debug|--minified]"
+            echo "  --force     Force rebuild Go bridge"
+            echo "  --release   Build release APK (signed, optimized)"
+            echo "  --debug     Build debug APK (full size, with debugging)"
+            echo "  --minified  Build minified APK (optimized for size, default)"
+            exit 1
+            ;;
+    esac
+done
 
 # 1. 智能加载 SDK 环境变量
 export ANDROID_HOME=$HOME/android-sdk
@@ -62,16 +91,35 @@ echo "--------------------------------------"
 echo "Step 2: Building Android App (APK)..."
 echo "--------------------------------------"
 
-# APK 路径
-APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+# 根据构建类型设置任务和APK路径
+if [ "$BUILD_TYPE" = "release" ]; then
+    GRADLE_TASK="assembleRelease"
+    APK_PATH="app/build/outputs/apk/release/app-release.apk"
+    echo "Building RELEASE APK (signed, minified, optimized)..."
+elif [ "$BUILD_TYPE" = "minified" ]; then
+    GRADLE_TASK="assembleMinified"
+    APK_PATH="app/build/outputs/apk/minified/app-minified.apk"
+    echo "Building MINIFIED APK (optimized for size, no debugging)..."
+else
+    GRADLE_TASK="assembleDebug"
+    APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
+    echo "Building DEBUG APK (full size, with debugging)..."
+fi
 
 # 始终运行 Gradle，因为它有自带的高效缓存机制 (Incremental Build)
-# 除非 Gradle 任务耗时太长，通常不需要手动跳过
 echo "Running Gradle build..."
 chmod +x ./gradlew
-./gradlew assembleDebug
+./gradlew $GRADLE_TASK
 
-echo "--------------------------------------"
-echo "Build Successful!"
-echo "APK Path: $APK_PATH"
-echo "--------------------------------------"
+# 显示APK大小
+if [ -f "$APK_PATH" ]; then
+    APK_SIZE=$(du -h "$APK_PATH" | cut -f1)
+    echo "--------------------------------------"
+    echo "Build Successful!"
+    echo "APK Path: $APK_PATH"
+    echo "APK Size: $APK_SIZE"
+    echo "--------------------------------------"
+else
+    echo "Error: APK not found at $APK_PATH"
+    exit 1
+fi

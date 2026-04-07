@@ -103,3 +103,38 @@ UI (Composable) → Event → ViewModel (StateFlow<UiState>) → Repository → 
 - `external/croc/src/croc/croc.go` — core logic (`Options`, `Client`, `Send`, `Receive`)
 - All engine calls run on background coroutines; progress exposed as `Flow<TransferProgress>`
 - `go/crocbridge/go.mod` must use `replace` pointing to `../../external/croc`
+
+---
+
+## Critical Go Bridge Rules
+
+### Mutex Usage with Long-Running Operations
+**NEVER hold a mutex during blocking/long-running operations that may not return on cancellation.**
+
+#### Problem Pattern (FORBIDDEN)
+```go
+func SendFiles(...) {
+    globalMutex.Lock()
+    defer globalMutex.Unlock()
+    
+    // ... setup ...
+    err = client.Send(...)  // ❌ May never return when cancelled → deadlock
+}
+```
+
+**Issue**: If `client.Send()` blocks indefinitely after cancellation, the `defer` never executes, leaving the mutex locked forever. Subsequent calls deadlock waiting for the mutex.
+
+#### Correct Pattern (REQUIRED)
+```go
+func SendFiles(...) {
+    // Lock only for critical sections that complete quickly
+    mutex.Lock()
+    // ... quick setup (e.g., chdir) ...
+    mutex.Unlock()
+    
+    // Long-running operation WITHOUT holding mutex
+    err = client.Send(...)
+}
+```
+
+**Rule**: Minimize mutex scope. Lock only around operations that are guaranteed to complete (e.g., map access, chdir). Release before calling any blocking operation that depends on external state or cancellation.

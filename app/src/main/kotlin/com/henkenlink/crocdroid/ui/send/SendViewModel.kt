@@ -116,15 +116,26 @@ class SendViewModel(
     fun sendSelectedFiles() {
         val uris = _selectedFileUris.value
         if (uris.isEmpty()) return
+        
+        // Prevent duplicate sends
+        if (currentSendJob?.isActive == true) {
+            android.util.Log.d("SendViewModel", "sendSelectedFiles: currentSendJob is still active, ignoring")
+            return
+        }
+        
+        android.util.Log.d("SendViewModel", "sendSelectedFiles: starting new send job")
 
         val tempDir = File(context.cacheDir, "temp_send_${System.currentTimeMillis()}")
         if (!tempDir.exists()) tempDir.mkdirs()
         currentTempDir = tempDir
 
         currentSendJob = viewModelScope.launch {
-            crocEngine.setLoading()
             isMyTransfer = true
+            android.util.Log.d("SendViewModel", "sendSelectedFiles: job started, setting loading")
+            crocEngine.setLoading()
+            
             try {
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: resolving code")
                 // Code resolution priority
                 val settings = settingsRepository.settingsState.value
                 val customCodeVal = _customCode.value
@@ -132,6 +143,7 @@ class SendViewModel(
                     ?: settings.fixedSendCode.takeIf { it.isNotBlank() }
                     ?: crocEngine.generateCode()
 
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: copying files to temp dir")
                 val filePaths = withContext(Dispatchers.IO) {
                     val paths = uris.mapNotNull { uri ->
                         ensureActive()
@@ -155,17 +167,24 @@ class SendViewModel(
                     paths
                 }
 
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: copied ${filePaths.size} files")
+                
                 if (filePaths.isEmpty()) {
+                    android.util.Log.d("SendViewModel", "sendSelectedFiles: no files copied, aborting")
                     crocEngine.resetState()
+                    isMyTransfer = false
+                    cleanupTempDir()
                     return@launch
                 }
 
                 var finalPaths = filePaths
                 var isZip = false
 
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: checking if need to zip")
                 // If any is a directory or multiple files, and auto-zip is on, zip them!
                 val hasDirectory = filePaths.any { File(it).isDirectory }
                 if (settings.autoZipFolders && (hasDirectory || filePaths.size > 1)) {
+                    android.util.Log.d("SendViewModel", "sendSelectedFiles: zipping files")
                     withContext(Dispatchers.IO) {
                         val zipName = if (filePaths.size == 1) {
                             File(filePaths.first()).name + ".zip"
@@ -180,23 +199,38 @@ class SendViewModel(
                         finalPaths = listOf(zipFile.absolutePath)
                         isZip = true
                     }
+                    android.util.Log.d("SendViewModel", "sendSelectedFiles: zipped to ${finalPaths.first()}")
                 }
 
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: starting transfer service")
                 context.startService(Intent(context, TransferService::class.java))
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: calling crocEngine.sendFiles")
                 crocEngine.sendFiles(finalPaths, code, settings, isTempZip = isZip)
+                android.util.Log.d("SendViewModel", "sendSelectedFiles: crocEngine.sendFiles returned")
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                // handled by collector
+                if (e is kotlinx.coroutines.CancellationException) {
+                    // Job was cancelled, clean up
+                    isMyTransfer = false
+                    cleanupTempDir()
+                    throw e
+                }
+                // Other errors handled by collector
+                isMyTransfer = false
+                cleanupTempDir()
             }
         }
     }
 
     fun cancelTransfer() {
+        android.util.Log.d("SendViewModel", "cancelTransfer: cancelling job, isActive=${currentSendJob?.isActive}")
+        isMyTransfer = false
         currentSendJob?.cancel()
         currentSendJob = null
-        crocEngine.cancelTransfer()
         cleanupTempDir()
-        isMyTransfer = false
+        crocEngine.cancelTransfer()
+        // Reset state to allow new transfers
+        crocEngine.resetState()
+        android.util.Log.d("SendViewModel", "cancelTransfer: done")
     }
 
     fun resetState() {

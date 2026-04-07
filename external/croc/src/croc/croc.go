@@ -92,7 +92,6 @@ type Options struct {
 	Quiet             bool
 	DisableClipboard  bool
 	ExtendedClipboard bool
-	OnProgress        func(bytesDone, totalBytes int64)
 	OnFileOffer       func(senderInfo SenderInfo) bool
 }
 
@@ -2163,9 +2162,6 @@ func (c *Client) receiveData(i int) {
 		c.bar.Add(len(data[8:]))
 		c.TotalSent += int64(len(data[8:]))
 		c.TotalChunksTransferred++
-		if c.Options.OnProgress != nil {
-			c.Options.OnProgress(c.TotalSent, c.FilesToTransfer[c.FilesToTransferCurrentNum].Size)
-		}
 		// log.Debug(len(c.CurrentFileChunks), c.TotalChunksTransferred, c.TotalSent, c.FilesToTransfer[c.FilesToTransferCurrentNum].Size)
 
 		if !c.CurrentFileIsClosed && (c.TotalChunksTransferred == len(c.CurrentFileChunks) || c.TotalSent == c.FilesToTransfer[c.FilesToTransferCurrentNum].Size) {
@@ -2276,9 +2272,6 @@ func (c *Client) sendData(i int) {
 					}
 					c.bar.Add(n)
 					c.TotalSent += int64(n)
-					if c.Options.OnProgress != nil {
-						c.Options.OnProgress(c.TotalSent, c.FilesToTransfer[c.FilesToTransferCurrentNum].Size)
-					}
 					// time.Sleep(100 * time.Millisecond)
 				}
 			}

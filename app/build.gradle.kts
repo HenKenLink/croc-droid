@@ -56,6 +56,17 @@ android {
                 abiFilters.add("arm64-v8a")
             }
         }
+        // Minified debug build for smaller APK size
+        create("minified") {
+            initWith(getByName("debug"))
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false  // Disable debugging to allow optimizations
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
 
     compileOptions {

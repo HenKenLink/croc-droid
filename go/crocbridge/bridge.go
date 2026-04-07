@@ -90,11 +90,16 @@ func unregisterCancel(id string) {
 
 // CancelTransfer cancels an ongoing transfer by its ID
 func CancelTransfer(id string) {
+	log.Debugf("CancelTransfer called for id: %s", id)
 	cancelMutex.Lock()
 	defer cancelMutex.Unlock()
 	if cancel, exists := cancelFuncs[id]; exists {
+		log.Debugf("CancelTransfer: found cancel function, calling it")
 		cancel()
 		delete(cancelFuncs, id)
+		log.Debugf("CancelTransfer: cancel function called and removed")
+	} else {
+		log.Debugf("CancelTransfer: no cancel function found for id %s", id)
 	}
 }
 
@@ -188,25 +193,12 @@ func parseConfig(configJSON string) TransferConfig {
 	return config
 }
 
-func setupProgress(cb CrocCallback) func(sent int64, total int64) {
-	var lastUpdate time.Time
-	var progressMutex sync.Mutex
-
-	return func(sent, total int64) {
-		progressMutex.Lock()
-		defer progressMutex.Unlock()
-		now := time.Now()
-		// Throttle updates to ~10Hz (every 100ms) to avoid killing JNI
-		if now.Sub(lastUpdate) >= 100*time.Millisecond || sent >= total {
-			lastUpdate = now
-			cb.OnProgress(sent, total)
-		}
-	}
-}
 
 // SendFiles sends multiple files or directories.
 func SendFiles(id string, filePathsJSON string, code string, configJSON string, cb CrocCallback) {
+	log.Debugf("SendFiles: called for transfer %s", id)
 	go func() {
+		log.Debugf("SendFiles: goroutine started for transfer %s", id)
 		config := parseConfig(configJSON)
 
 		var filePaths []string
@@ -233,23 +225,26 @@ func SendFiles(id string, filePathsJSON string, code string, configJSON string, 
 			HashAlgorithm:    config.HashAlgorithm,
 			RelayPorts:       strings.Split(config.RelayPorts, ","),
 			Debug:            config.DebugMode,
-			OnProgress:       setupProgress(cb),
 			IP:               config.PeerIP,
 		}
-
-		chdirMutex.Lock()
-		defer chdirMutex.Unlock()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		registerCancel(id, cancel)
 		defer unregisterCancel(id)
-
+		
 		client, err := croc.NewCtx(ctx, opts)
 		if err != nil {
 			cb.OnError("Init error: " + err.Error())
 			return
 		}
-		defer closeClient(client)
+		
+		// Monitor context cancellation and force close client
+		go func() {
+			<-ctx.Done()
+			log.Debugf("SendFiles: context cancelled for transfer %s, force closing client", id)
+			closeClient(client)
+			log.Debugf("SendFiles: client closed for transfer %s", id)
+		}()
 
 		// Tell UI the code in case they want to show it BEFORE sending starts
 		cb.OnReady(client.Options.SharedSecret)
@@ -288,14 +283,20 @@ func SendFiles(id string, filePathsJSON string, code string, configJSON string, 
 			}
 		}()
 
+		log.Debugf("SendFiles: calling client.Send for transfer %s", id)
 		err = client.Send(filesInfo, emptyFolders, totalNumFolders)
+		log.Debugf("SendFiles: client.Send returned for transfer %s, err=%v", id, err)
 		close(donechan)
 		if err != nil {
+			log.Debugf("SendFiles: client.Send returned error: %v", err)
 			cb.OnError("Send error: " + err.Error())
+			log.Debugf("SendFiles: cb.OnError called")
 			return
 		}
 
+		log.Debugf("SendFiles: transfer successful, calling cb.OnSuccess")
 		cb.OnSuccess()
+		log.Debugf("SendFiles: goroutine ending for transfer %s", id)
 	}()
 }
 
@@ -319,7 +320,6 @@ func ReceiveFile(id string, code string, saveDir string, configJSON string, cb C
 			HashAlgorithm:    config.HashAlgorithm,
 			RelayPorts:       strings.Split(config.RelayPorts, ","),
 			Debug:            config.DebugMode,
-			OnProgress:       setupProgress(cb),
 			IP:               config.PeerIP,
 			OnFileOffer: func(senderInfo croc.SenderInfo) bool {
 				// Bypass confirmation if NoPromptReceive is enabled
@@ -348,20 +348,25 @@ func ReceiveFile(id string, code string, saveDir string, configJSON string, cb C
 			},
 		}
 
-		chdirMutex.Lock()
-		defer chdirMutex.Unlock()
+		ctx, cancel := context.WithCancel(context.Background())
+		registerCancel(id, cancel)
+		defer unregisterCancel(id)
 
+		// Lock only for the chdir operation, not the entire transfer
+		chdirMutex.Lock()
 		origDir, _ := os.Getwd()
 		err := os.Chdir(saveDir)
+		chdirMutex.Unlock()
+		
 		if err != nil {
 			cb.OnError("Dir error: " + err.Error())
 			return
 		}
-		defer os.Chdir(origDir)
-
-		ctx, cancel := context.WithCancel(context.Background())
-		registerCancel(id, cancel)
-		defer unregisterCancel(id)
+		defer func() {
+			chdirMutex.Lock()
+			os.Chdir(origDir)
+			chdirMutex.Unlock()
+		}()
 
 		// Loop to retry and ignore the "ping" error (unexpected end of JSON input)
 		// which happens if the room is empty on the relay.
