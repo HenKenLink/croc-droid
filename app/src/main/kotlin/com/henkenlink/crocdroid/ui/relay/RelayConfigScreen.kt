@@ -25,6 +25,7 @@ fun RelayConfigScreen(
     modifier: Modifier = Modifier
 ) {
     val configs by viewModel.relayConfigsState.collectAsState()
+    val selectedConfigId by viewModel.selectedConfigId.collectAsState()
     var showDialog by remember { mutableStateOf(false) }
     var editingConfig by remember { mutableStateOf<RelayConfig?>(null) }
     
@@ -65,7 +66,9 @@ fun RelayConfigScreen(
                         editingConfig = config
                         showDialog = true
                     },
-                    onDelete = { viewModel.deleteConfig(config.id) }
+                    onDelete = { viewModel.deleteConfig(config.id) },
+                    onSelect = { viewModel.selectConfig(config.id) },
+                    isSelected = config.id == selectedConfigId
                 )
             }
         }
@@ -92,12 +95,15 @@ fun RelayConfigCard(
     config: RelayConfig,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    onSelect: () -> Unit = {},
+    isSelected: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Card(
+        onClick = onSelect,
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(
@@ -109,13 +115,22 @@ fun RelayConfigCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = config.name,
-                    style = MaterialTheme.typography.titleMedium,
+                Row(
                     modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RadioButton(
+                        selected = isSelected,
+                        onClick = onSelect
+                    )
+                    Text(
+                        text = config.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Row {
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit ${config.name}")
@@ -155,7 +170,7 @@ fun RelayConfigDialog(
 ) {
     var name by remember { mutableStateOf(config?.name ?: "") }
     var address by remember { mutableStateOf(config?.relayAddress ?: "") }
-    var ports by remember { mutableStateOf(config?.relayPorts ?: "") }
+    var ports by remember { mutableStateOf(config?.relayPorts ?: "9009,9010,9011,9012,9013") }
     var password by remember { mutableStateOf(config?.relayPassword ?: "") }
     var showPassword by remember { mutableStateOf(false) }
     
@@ -185,7 +200,7 @@ fun RelayConfigDialog(
                     value = ports,
                     onValueChange = { ports = it },
                     label = { Text("Relay Ports") },
-                    placeholder = { Text("9009,9010,9011") },
+                    placeholder = { Text("9009,9010,9011,9012,9013") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )

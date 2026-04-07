@@ -59,65 +59,119 @@ fun SettingsScreen(
         ) {
             // --- Connection / Relay ---
             SettingsCard(title = "Relay & Connection", icon = Icons.Default.Router) {
-                // Active relay configuration with details
-                Row(
+                // Relay configuration selector
+                Text(
+                    text = "Active Relay Configuration",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                
+                Spacer(Modifier.height(12.dp))
+                
+                // Dropdown selector for relay configs
+                val relayConfigs by viewModel.relayConfigsState.collectAsStateWithLifecycle()
+                var expanded by remember { mutableStateOf(false) }
+                
+                Card(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    onClick = { expanded = true }
                 ) {
-                    Text(
-                        text = "Active Relay Configuration",
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f)
-                    )
-                    IconButton(onClick = onNavigateToRelayConfig) {
-                        Icon(Icons.Default.Edit, contentDescription = "Change")
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = selectedConfig?.name ?: "None",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = selectedConfig?.relayAddress ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ArrowDropDown,
+                            contentDescription = "Select config",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 
-                Spacer(Modifier.height(8.dp))
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.fillMaxWidth(0.9f)
+                ) {
+                    relayConfigs.forEach { config ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = config.name,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                    Text(
+                                        text = config.relayAddress,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            onClick = {
+                                viewModel.selectRelayConfig(config.id)
+                                expanded = false
+                            },
+                            leadingIcon = {
+                                if (config.id == selectedConfig?.id) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = "Selected",
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        )
+                    }
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("Manage Configs") },
+                        onClick = {
+                            expanded = false
+                            onNavigateToRelayConfig()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Settings, contentDescription = null)
+                        }
+                    )
+                }
                 
-                // Display config name
-                OutlinedTextField(
-                    value = selectedConfig?.name ?: "None",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Profile Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Spacer(Modifier.height(12.dp))
                 
-                Spacer(Modifier.height(8.dp))
-                
-                // Display relay address
-                OutlinedTextField(
-                    value = selectedConfig?.relayAddress ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Relay Address") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(Modifier.height(8.dp))
-                
-                // Display relay ports
-                OutlinedTextField(
-                    value = selectedConfig?.relayPorts ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Relay Ports") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(Modifier.height(8.dp))
-                
-                // Display relay password (masked)
-                OutlinedTextField(
-                    value = selectedConfig?.relayPassword?.let { "•".repeat(it.length) } ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Relay Password") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+                // Display selected config details
+                selectedConfig?.let { config ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            ConfigDetailRow("Relay Ports", config.relayPorts)
+                            ConfigDetailRow("Password", "•".repeat(config.relayPassword.length))
+                        }
+                    }
+                }
                 
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider()
@@ -319,6 +373,25 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(32.dp))
         }
+    }
+}
+
+@Composable
+fun ConfigDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium
+        )
     }
 }
 

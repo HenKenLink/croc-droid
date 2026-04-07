@@ -20,6 +20,7 @@ class SettingsViewModel(
 
     val settingsState = settingsRepository.settingsState
     val historyState = settingsRepository.historyState
+    val relayConfigsState = settingsRepository.relayConfigsState
 
     val selectedRelayConfig: StateFlow<RelayConfig?> = 
         settingsRepository.settingsState.map { settings ->
@@ -30,6 +31,10 @@ class SettingsViewModel(
 
     fun updateSettings(settings: CrocSettings) {
         settingsRepository.updateSettings(settings)
+    }
+
+    fun selectRelayConfig(configId: String) {
+        settingsRepository.selectRelayConfig(configId)
     }
 
     fun deleteHistoryEntry(id: String) {

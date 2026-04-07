@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.henkenlink.crocdroid.data.settings.SettingsRepository
 import com.henkenlink.crocdroid.domain.model.RelayConfig
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class RelayConfigViewModel(
@@ -14,6 +17,10 @@ class RelayConfigViewModel(
     
     val relayConfigsState: StateFlow<List<RelayConfig>> = 
         settingsRepository.relayConfigsState
+    
+    val selectedConfigId: StateFlow<String> = 
+        settingsRepository.settingsState.map { it.selectedRelayConfigId }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "default")
     
     fun addConfig(name: String, address: String, ports: String, password: String) {
         viewModelScope.launch {
@@ -43,6 +50,12 @@ class RelayConfigViewModel(
     fun deleteConfig(id: String) {
         viewModelScope.launch {
             settingsRepository.removeRelayConfig(id)
+        }
+    }
+    
+    fun selectConfig(id: String) {
+        viewModelScope.launch {
+            settingsRepository.selectRelayConfig(id)
         }
     }
     

@@ -54,7 +54,7 @@ fun ReceiveScreen(
         topBar = {
             if (transferState is TransferState.Idle) {
                 TopAppBar(
-                    title = { Text("Receive Files") },
+                    title = { },
                     actions = {
                         IconButton(onClick = onNavigateToHistory) {
                             Icon(Icons.Default.History, contentDescription = "View History")
