@@ -80,81 +80,104 @@ fun SettingsScreen(
                 
                 Spacer(Modifier.height(12.dp))
                 
-                // Dropdown selector for relay configs
+                // Relay config selector
                 val relayConfigs by viewModel.relayConfigsState.collectAsStateWithLifecycle()
-                var expanded by remember { mutableStateOf(false) }
+                var showConfigDialog by remember { mutableStateOf(false) }
                 
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        onClick = { expanded = true }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    ),
+                    onClick = { showConfigDialog = true }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = selectedConfig?.name ?: "None",
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = selectedConfig?.relayAddress ?: "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                contentDescription = "Select config",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = selectedConfig?.name ?: "None",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = selectedConfig?.relayAddress ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                        Icon(
+                            Icons.Default.ArrowDropDown,
+                            contentDescription = "Select config",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                    
-                    DropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        relayConfigs.forEach { config ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(
-                                            text = config.name,
-                                            style = MaterialTheme.typography.bodyLarge
-                                        )
-                                        Text(
-                                            text = config.relayAddress,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                },
-                                onClick = {
-                                    viewModel.selectRelayConfig(config.id)
-                                    expanded = false
-                                },
-                                leadingIcon = {
-                                    if (config.id == selectedConfig?.id) {
-                                        Icon(
-                                            Icons.Default.Check,
-                                            contentDescription = "Selected",
-                                            tint = MaterialTheme.colorScheme.primary
-                                        )
+                }
+                
+                // Config selection dialog
+                if (showConfigDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showConfigDialog = false },
+                        title = { Text("Select Relay Configuration") },
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                relayConfigs.forEach { config ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (config.id == selectedConfig?.id) 
+                                                MaterialTheme.colorScheme.primaryContainer 
+                                            else 
+                                                MaterialTheme.colorScheme.surfaceVariant
+                                        ),
+                                        onClick = {
+                                            viewModel.selectRelayConfig(config.id)
+                                            showConfigDialog = false
+                                        }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            RadioButton(
+                                                selected = config.id == selectedConfig?.id,
+                                                onClick = {
+                                                    viewModel.selectRelayConfig(config.id)
+                                                    showConfigDialog = false
+                                                }
+                                            )
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = config.name,
+                                                    style = MaterialTheme.typography.titleSmall
+                                                )
+                                                Text(
+                                                    text = config.relayAddress,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
                                     }
                                 }
-                            )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showConfigDialog = false }) {
+                                Text("Close")
+                            }
                         }
-                    }
+                    )
                 }
                 
                 Spacer(Modifier.height(12.dp))

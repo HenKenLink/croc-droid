@@ -79,6 +79,7 @@ class CrocEngine {
 
             Crocbridge.sendFiles(transferId, filePathsJson, code, configJson, object : CrocCallback {
                 override fun onReady(p0: String?) {
+                    if (currentTransferId != transferId) return
                     val actualCode = p0 ?: code
                     _transferState.value = TransferState.WaitingForRecipient(actualCode)
                 }
@@ -96,6 +97,7 @@ class CrocEngine {
                     sent: Long,
                     total: Long
                 ) {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Transferring(
                         sentBytes = sent,
                         totalBytes = total,
@@ -106,11 +108,13 @@ class CrocEngine {
                 }
 
                 override fun onSuccess() {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Success()
                     currentTransferId = null
                 }
 
                 override fun onSuccessWithFiles(fileListJson: String?) {
+                    if (currentTransferId != transferId) return
                     val files = try {
                         fileListJson?.let { Json.decodeFromString<List<String>>(it) } ?: emptyList()
                     } catch (e: Exception) {
@@ -121,6 +125,7 @@ class CrocEngine {
                 }
 
                 override fun onError(errStr: String?) {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Error(errStr ?: "Unknown error occurred")
                     currentTransferId = null
                 }
@@ -160,10 +165,12 @@ class CrocEngine {
 
             Crocbridge.receiveFile(transferId, code, saveDir, configJson, object : CrocCallback {
                 override fun onReady(p0: String?) {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Loading
                 }
 
                 override fun onFileOffer(p0: String?, p1: Long, p2: Long): Boolean {
+                    if (currentTransferId != transferId) return false
                     _transferState.value = TransferState.FileOffer(
                         fileName = p0 ?: "Unknown",
                         fileSize = p1,
@@ -183,6 +190,7 @@ class CrocEngine {
                     sent: Long,
                     total: Long
                 ) {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Transferring(
                         sentBytes = sent,
                         totalBytes = total,
@@ -193,11 +201,13 @@ class CrocEngine {
                 }
 
                 override fun onSuccess() {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Success()
                     currentTransferId = null
                 }
 
                 override fun onSuccessWithFiles(fileListJson: String?) {
+                    if (currentTransferId != transferId) return
                     val files = try {
                         fileListJson?.let { Json.decodeFromString<List<String>>(it) } ?: emptyList()
                     } catch (e: Exception) {
@@ -208,6 +218,7 @@ class CrocEngine {
                 }
 
                 override fun onError(errStr: String?) {
+                    if (currentTransferId != transferId) return
                     _transferState.value = TransferState.Error(errStr ?: "Unknown error occurred")
                     currentTransferId = null
                 }
@@ -248,6 +259,10 @@ class CrocEngine {
 
     fun resetState() {
         _transferState.value = TransferState.Idle
+    }
+
+    fun setLoading() {
+        _transferState.value = TransferState.Loading
     }
 
     /**

@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.henkenlink.crocdroid.data.croc.CrocEngine
 import com.henkenlink.crocdroid.data.settings.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,6 +44,7 @@ class SendViewModel(
     
     private var isMyTransfer = false
     private var currentTempDir: File? = null
+    private var currentSendJob: Job? = null
 
     init {
         // Correct history recording: observe state transitions
@@ -118,8 +121,8 @@ class SendViewModel(
         if (!tempDir.exists()) tempDir.mkdirs()
         currentTempDir = tempDir
 
-        viewModelScope.launch {
-            crocEngine.resetState()
+        currentSendJob = viewModelScope.launch {
+            crocEngine.setLoading()
             isMyTransfer = true
             try {
                 // Code resolution priority
@@ -131,6 +134,7 @@ class SendViewModel(
 
                 val filePaths = withContext(Dispatchers.IO) {
                     val paths = uris.mapNotNull { uri ->
+                        ensureActive()
                         val docFile = DocumentFile.fromSingleUri(context, uri) ?: DocumentFile.fromTreeUri(context, uri)
                         val isDirectory = docFile?.isDirectory == true
 
@@ -181,12 +185,15 @@ class SendViewModel(
                 context.startService(Intent(context, TransferService::class.java))
                 crocEngine.sendFiles(finalPaths, code, settings, isTempZip = isZip)
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 // handled by collector
             }
         }
     }
 
     fun cancelTransfer() {
+        currentSendJob?.cancel()
+        currentSendJob = null
         crocEngine.cancelTransfer()
         cleanupTempDir()
         isMyTransfer = false
