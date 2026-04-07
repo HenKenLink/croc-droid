@@ -2,8 +2,14 @@ package com.henkenlink.crocdroid.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import com.henkenlink.crocdroid.data.settings.SettingsRepository
 import com.henkenlink.crocdroid.domain.model.CrocSettings
+import com.henkenlink.crocdroid.domain.model.RelayConfig
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 class SettingsViewModel(
     private val settingsRepository: SettingsRepository,
@@ -14,6 +20,13 @@ class SettingsViewModel(
 
     val settingsState = settingsRepository.settingsState
     val historyState = settingsRepository.historyState
+
+    val selectedRelayConfig: StateFlow<RelayConfig?> = 
+        settingsRepository.settingsState.map { settings ->
+            settingsRepository.relayConfigsState.value.find { 
+                it.id == settings.selectedRelayConfigId 
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun updateSettings(settings: CrocSettings) {
         settingsRepository.updateSettings(settings)

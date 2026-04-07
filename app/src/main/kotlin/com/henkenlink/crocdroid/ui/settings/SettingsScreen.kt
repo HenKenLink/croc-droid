@@ -22,9 +22,11 @@ import java.util.*
 fun SettingsScreen(
     viewModel: SettingsViewModel,
     onNavigateToLogs: () -> Unit,
+    onNavigateToRelayConfig: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
+    val selectedConfig by viewModel.selectedRelayConfig.collectAsStateWithLifecycle()
     
     val folderLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree()
@@ -57,30 +59,25 @@ fun SettingsScreen(
         ) {
             // --- Connection / Relay ---
             SettingsCard(title = "Relay & Connection", icon = Icons.Default.Router) {
+                // Read-only display of selected config
                 OutlinedTextField(
-                    value = settings.relayAddress,
-                    onValueChange = { viewModel.updateSettings(settings.copy(relayAddress = it)) },
-                    label = { Text("Relay Address") },
+                    value = selectedConfig?.name ?: "None",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Active Relay Configuration") },
                     modifier = Modifier.fillMaxWidth(),
+                    trailingIcon = {
+                        IconButton(onClick = onNavigateToRelayConfig) {
+                            Icon(Icons.Default.Edit, contentDescription = "Change")
+                        }
+                    }
                 )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = settings.relayPorts,
-                    onValueChange = { viewModel.updateSettings(settings.copy(relayPorts = it)) },
-                    label = { Text("Relay Ports") },
-                    placeholder = { Text("e.g. 9009,9010,9011") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = settings.relayPassword,
-                    onValueChange = { viewModel.updateSettings(settings.copy(relayPassword = it)) },
-                    label = { Text("Relay Password") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                
                 Spacer(Modifier.height(16.dp))
                 HorizontalDivider()
                 Spacer(Modifier.height(16.dp))
+                
+                // Keep Peer IP field as-is
                 OutlinedTextField(
                     value = settings.peerIp,
                     onValueChange = { viewModel.updateSettings(settings.copy(peerIp = it)) },

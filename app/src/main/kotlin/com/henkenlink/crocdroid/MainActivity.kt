@@ -40,8 +40,12 @@ import com.henkenlink.crocdroid.data.settings.SettingsRepository
 import com.henkenlink.crocdroid.navigation.*
 import com.henkenlink.crocdroid.ui.receive.ReceiveScreen
 import com.henkenlink.crocdroid.ui.receive.ReceiveViewModel
+import com.henkenlink.crocdroid.ui.history.ReceiveHistoryScreen
+import com.henkenlink.crocdroid.ui.history.ReceiveHistoryViewModel
 import com.henkenlink.crocdroid.ui.relay.RelayScreen
 import com.henkenlink.crocdroid.ui.relay.RelayViewModel
+import com.henkenlink.crocdroid.ui.relay.RelayConfigScreen
+import com.henkenlink.crocdroid.ui.relay.RelayConfigViewModel
 import com.henkenlink.crocdroid.ui.send.SendScreen
 import com.henkenlink.crocdroid.ui.send.SendViewModel
 import com.henkenlink.crocdroid.ui.settings.SettingsScreen
@@ -91,7 +95,11 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         val navBackStackEntry by navController.currentBackStackEntryAsState()
                         val currentDestination = navBackStackEntry?.destination
-                        val showBottomBar = currentDestination?.route?.contains("DebugLogRoute") != true
+                        val showBottomBar = currentDestination?.route?.let { route ->
+                            route.contains("DebugLogRoute") == false &&
+                            route.contains("ReceiveHistoryRoute") == false &&
+                            route.contains("RelayConfigRoute") == false
+                        } ?: true
 
                         if (showBottomBar) {
                             NavigationBar {
@@ -167,13 +175,37 @@ class MainActivity : ComponentActivity() {
                             val viewModel: ReceiveViewModel = viewModel(
                                 factory = ReceiveViewModel.provideFactory(crocEngine, settingsRepository, LocalContext.current)
                             )
-                            ReceiveScreen(viewModel)
+                            ReceiveScreen(
+                                viewModel = viewModel,
+                                onNavigateToHistory = { navController.navigate(ReceiveHistoryRoute) }
+                            )
+                        }
+                        composable<ReceiveHistoryRoute> {
+                            val viewModel: ReceiveHistoryViewModel = viewModel(
+                                factory = ReceiveHistoryViewModel.provideFactory(settingsRepository, LocalContext.current)
+                            )
+                            ReceiveHistoryScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
                         }
                         composable<RelayRoute> {
                             val viewModel: RelayViewModel = viewModel(
-                                factory = RelayViewModel.provideFactory(crocEngine)
+                                factory = RelayViewModel.provideFactory(crocEngine, settingsRepository)
                             )
-                            RelayScreen(viewModel)
+                            RelayScreen(
+                                viewModel = viewModel,
+                                onNavigateToRelayConfig = { navController.navigate(RelayConfigRoute) }
+                            )
+                        }
+                        composable<RelayConfigRoute> {
+                            val viewModel: RelayConfigViewModel = viewModel(
+                                factory = RelayConfigViewModel.provideFactory(settingsRepository)
+                            )
+                            RelayConfigScreen(
+                                viewModel = viewModel,
+                                onNavigateBack = { navController.popBackStack() }
+                            )
                         }
                         composable<SettingsRoute> {
                             val viewModel: SettingsViewModel = viewModel(
@@ -181,7 +213,8 @@ class MainActivity : ComponentActivity() {
                             )
                             SettingsScreen(
                                 viewModel = viewModel,
-                                onNavigateToLogs = { navController.navigate(DebugLogRoute) }
+                                onNavigateToLogs = { navController.navigate(DebugLogRoute) },
+                                onNavigateToRelayConfig = { navController.navigate(RelayConfigRoute) }
                             )
                         }
                         composable<DebugLogRoute> {

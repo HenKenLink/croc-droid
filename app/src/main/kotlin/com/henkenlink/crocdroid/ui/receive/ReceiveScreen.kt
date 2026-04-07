@@ -34,6 +34,7 @@ import com.journeyapps.barcodescanner.ScanOptions
 @Composable
 fun ReceiveScreen(
     viewModel: ReceiveViewModel,
+    onNavigateToHistory: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val transferState by viewModel.transferState.collectAsStateWithLifecycle()
@@ -76,194 +77,101 @@ fun ReceiveScreen(
                 ) {
                     when (state) {
                         is TransferState.Idle -> {
-                            val history by viewModel.receiveHistoryState.collectAsStateWithLifecycle()
-                            val dateFormatter = remember { java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()) }
+                            Spacer(modifier = Modifier.height(32.dp))
+                            ReceiveHeroSection(
+                                icon = Icons.Outlined.CloudDownload,
+                                title = "Receive Files",
+                                subtitle = "Enter code or scan QR to connect"
+                            )
+                            Spacer(modifier = Modifier.height(32.dp))
 
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                contentPadding = PaddingValues(bottom = 24.dp)
+                            // Input Area
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                shape = MaterialTheme.shapes.large
                             ) {
-                                item {
-                                    Spacer(modifier = Modifier.height(32.dp))
-                                    ReceiveHeroSection(
-                                        icon = Icons.Outlined.CloudDownload,
-                                        title = "Receive Files",
-                                        subtitle = "Enter code or scan QR to connect"
-                                    )
-                                    Spacer(modifier = Modifier.height(32.dp))
-
-                                    // Input Area
-                                    Card(
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+                                    OutlinedTextField(
+                                        value = code,
+                                        onValueChange = {
+                                            val sanitized = it.trim().replace(" ", "-")
+                                            viewModel.updateReceiveCode(sanitized)
+                                        },
+                                        label = { Text("Transfer Code") },
+                                        singleLine = true,
+                                        textStyle = LocalTextStyle.current.copy(
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 18.sp,
+                                        ),
                                         modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                        shape = MaterialTheme.shapes.large
+                                        trailingIcon = {
+                                            Row(modifier = Modifier.padding(end = 4.dp)) {
+                                                if (code.isNotEmpty()) {
+                                                    IconButton(onClick = { viewModel.updateReceiveCode("") }) {
+                                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                                    }
+                                                }
+                                                IconButton(onClick = {
+                                                    clipboardManager.getText()?.text?.let {
+                                                        viewModel.updateReceiveCode(it.trim().replace(" ", "-"))
+                                                    }
+                                                }) {
+                                                    Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
+                                                }
+                                            }
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.height(16.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
-                                            OutlinedTextField(
-                                                value = code,
-                                                onValueChange = {
-                                                    val sanitized = it.trim().replace(" ", "-")
-                                                    viewModel.updateReceiveCode(sanitized)
-                                                },
-                                                label = { Text("Transfer Code") },
-                                                singleLine = true,
-                                                textStyle = LocalTextStyle.current.copy(
-                                                    fontFamily = FontFamily.Monospace,
-                                                    fontSize = 18.sp,
-                                                ),
-                                                modifier = Modifier.fillMaxWidth(),
-                                                trailingIcon = {
-                                                    Row(modifier = Modifier.padding(end = 4.dp)) {
-                                                        if (code.isNotEmpty()) {
-                                                            IconButton(onClick = { viewModel.updateReceiveCode("") }) {
-                                                                Icon(Icons.Default.Clear, contentDescription = "Clear")
-                                                            }
-                                                        }
-                                                        IconButton(onClick = {
-                                                            clipboardManager.getText()?.text?.let {
-                                                                viewModel.updateReceiveCode(it.trim().replace(" ", "-"))
-                                                            }
-                                                        }) {
-                                                            Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
-                                                        }
-                                                    }
+                                        FilledTonalButton(
+                                            onClick = {
+                                                val options = ScanOptions().apply {
+                                                    setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                                    setPrompt("Scan a croc transfer QR code")
+                                                    setBeepEnabled(false)
+                                                    setBarcodeImageEnabled(true)
+                                                    setOrientationLocked(true)
+                                                    setCaptureActivity(PortraitCaptureActivity::class.java)
                                                 }
-                                            )
+                                                scanLauncher.launch(options)
+                                            },
+                                            modifier = Modifier.weight(1f).height(50.dp)
+                                        ) {
+                                            Icon(Icons.Default.QrCodeScanner, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Scan QR")
+                                        }
 
-                                            Spacer(modifier = Modifier.height(16.dp))
-
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                            ) {
-                                                FilledTonalButton(
-                                                    onClick = {
-                                                        val options = ScanOptions().apply {
-                                                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                                                            setPrompt("Scan a croc transfer QR code")
-                                                            setBeepEnabled(false)
-                                                            setBarcodeImageEnabled(true)
-                                                            setOrientationLocked(true)
-                                                        }
-                                                        scanLauncher.launch(options)
-                                                    },
-                                                    modifier = Modifier.weight(1f).height(50.dp)
-                                                ) {
-                                                    Icon(Icons.Default.QrCodeScanner, contentDescription = null)
-                                                    Spacer(Modifier.width(8.dp))
-                                                    Text("Scan QR")
-                                                }
-
-                                                Button(
-                                                    onClick = { viewModel.receiveFile(code) },
-                                                    enabled = code.isNotBlank(),
-                                                    modifier = Modifier.weight(1f).height(50.dp),
-                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                                ) {
-                                                    Icon(Icons.Default.Download, contentDescription = null)
-                                                    Spacer(Modifier.width(8.dp))
-                                                    Text("Receive")
-                                                }
-                                            }
+                                        Button(
+                                            onClick = { viewModel.receiveFile(code) },
+                                            enabled = code.isNotBlank(),
+                                            modifier = Modifier.weight(1f).height(50.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                        ) {
+                                            Icon(Icons.Default.Download, contentDescription = null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Receive")
                                         }
                                     }
-
-                                    Spacer(modifier = Modifier.height(32.dp))
                                 }
+                            }
 
-                                if (history.isNotEmpty()) {
-                                    item {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                                Spacer(Modifier.width(8.dp))
-                                                Text("Receive History", style = MaterialTheme.typography.titleMedium)
-                                            }
-                                            TextButton(onClick = { viewModel.clearHistory() }) {
-                                                Text("Clear All")
-                                            }
-                                        }
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                    }
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                                    items(history.size) { index ->
-                                        val entry = history[index]
-                                        val allFilesMissing = entry.filePaths.none { java.io.File(it).exists() }
-
-                                        Card(
-                                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                        ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.InsertDriveFile,
-                                                            contentDescription = null,
-                                                            tint = if (allFilesMissing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                        Spacer(Modifier.width(8.dp))
-                                                        Text(
-                                                            text = entry.fileName,
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            color = if (allFilesMissing) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                    }
-                                                    Text(
-                                                        text = dateFormatter.format(java.util.Date(entry.timestamp)),
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                }
-                                                
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Text(
-                                                        text = if (allFilesMissing) "File missing or deleted" else "${FileUtil.formatSize(entry.fileSize)} • ${entry.fileCount} file(s)",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = if (allFilesMissing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                                                    )
-                                                    
-                                                    Row(horizontalArrangement = Arrangement.End) {
-                                                        if (!allFilesMissing) {
-                                                            // For single files, open directly. For folders/multiple files, assume they are zipped or first item
-                                                            val filePathToOpen = entry.filePaths.firstOrNull { java.io.File(it).exists() }
-                                                            if (filePathToOpen != null) {
-                                                                IconButton(onClick = { viewModel.openHistoryFile(filePathToOpen) }, modifier = Modifier.size(32.dp)) {
-                                                                    Icon(Icons.Default.OpenInNew, contentDescription = "Open", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                                                                }
-                                                                IconButton(onClick = { viewModel.shareHistoryFile(filePathToOpen) }, modifier = Modifier.size(32.dp)) {
-                                                                    Icon(Icons.Default.Share, contentDescription = "Share", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                                                                }
-                                                            }
-                                                        }
-                                                        IconButton(onClick = { viewModel.deleteHistoryEntry(entry.id) }, modifier = Modifier.size(32.dp)) {
-                                                            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.outline)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                            // History button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                IconButton(onClick = onNavigateToHistory) {
+                                    Icon(Icons.Default.History, contentDescription = "View History")
                                 }
                             }
                         }

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Router
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,12 +20,25 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun RelayScreen(
     viewModel: RelayViewModel,
+    onNavigateToRelayConfig: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isRunning by viewModel.relayRunning.collectAsStateWithLifecycle()
+    val relayConfigs by viewModel.relayConfigsState.collectAsStateWithLifecycle()
+    val selectedConfig by viewModel.selectedRelayConfig.collectAsStateWithLifecycle()
+    
     var host by remember { mutableStateOf("0.0.0.0") }
     var port by remember { mutableStateOf("9009") }
     var password by remember { mutableStateOf("pass123") }
+    
+    // Auto-fill from selected config
+    LaunchedEffect(selectedConfig) {
+        selectedConfig?.let { config ->
+            host = config.relayAddress
+            port = config.relayPorts.split(",").firstOrNull() ?: "9009"
+            password = config.relayPassword
+        }
+    }
 
     Column(
         modifier = modifier
@@ -83,6 +97,58 @@ fun RelayScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+        // Relay Configuration Selector
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Relay Configuration", style = MaterialTheme.typography.titleMedium)
+                    IconButton(onClick = onNavigateToRelayConfig) {
+                        Icon(Icons.Default.Settings, contentDescription = "Manage Configs")
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedConfig?.name ?: "Select Config",
+                        onValueChange = {},
+                        readOnly = true,
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        enabled = !isRunning
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        relayConfigs.forEach { config ->
+                            DropdownMenuItem(
+                                text = { Text(config.name) },
+                                onClick = {
+                                    viewModel.selectRelayConfig(config.id)
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),

@@ -3,12 +3,14 @@ package com.henkenlink.crocdroid.data.settings
 import android.content.Context
 import androidx.core.content.edit
 import com.henkenlink.crocdroid.domain.model.CrocSettings
+import com.henkenlink.crocdroid.domain.model.RelayConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import com.henkenlink.crocdroid.domain.model.HistoryEntry
+import android.util.Log
 
 class SettingsRepository(private val context: Context) {
 
@@ -159,6 +161,74 @@ class SettingsRepository(private val context: Context) {
             }
             _receiveHistoryState.value = validHistory
         }
+    }
+
+    // Relay Config management
+    private val _relayConfigsState = MutableStateFlow(loadRelayConfigs())
+    val relayConfigsState: StateFlow<List<RelayConfig>> = _relayConfigsState.asStateFlow()
+
+    private fun loadRelayConfigs(): List<RelayConfig> {
+        val jsonString = prefs.getString("relay_configs_json", null)
+        val configs = if (jsonString != null) {
+            try {
+                Json.decodeFromString<List<RelayConfig>>(jsonString)
+            } catch (e: Exception) {
+                Log.e("SettingsRepository", "Failed to load relay configs", e)
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+        
+        // Ensure default config is always present
+        return if (configs.none { it.id == "default" }) {
+            listOf(RelayConfig.DEFAULT) + configs
+        } else {
+            configs
+        }
+    }
+
+    private fun saveRelayConfigs(configs: List<RelayConfig>) {
+        val jsonString = Json.encodeToString(configs)
+        prefs.edit {
+            putString("relay_configs_json", jsonString)
+        }
+        _relayConfigsState.value = configs
+    }
+
+    fun addRelayConfig(config: RelayConfig) {
+        val currentConfigs = _relayConfigsState.value.toMutableList()
+        currentConfigs.add(config)
+        saveRelayConfigs(currentConfigs)
+    }
+
+    fun updateRelayConfig(config: RelayConfig) {
+        val currentConfigs = _relayConfigsState.value.toMutableList()
+        val index = currentConfigs.indexOfFirst { it.id == config.id }
+        if (index != -1) {
+            currentConfigs[index] = config
+            saveRelayConfigs(currentConfigs)
+        }
+    }
+
+    fun removeRelayConfig(id: String) {
+        // Prevent deletion of default config
+        if (id == "default") return
+        
+        val updatedConfigs = _relayConfigsState.value.filter { it.id != id }
+        saveRelayConfigs(updatedConfigs)
+    }
+
+    fun selectRelayConfig(configId: String) {
+        val config = _relayConfigsState.value.find { it.id == configId } ?: return
+        val currentSettings = _settingsState.value
+        
+        updateSettings(currentSettings.copy(
+            selectedRelayConfigId = configId,
+            relayAddress = config.relayAddress,
+            relayPorts = config.relayPorts,
+            relayPassword = config.relayPassword
+        ))
     }
 }
 

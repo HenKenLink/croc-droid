@@ -24,4 +24,5 @@ data class CrocSettings(
     val autoZipFolders: Boolean = true,
     val noPromptReceive: Boolean = false,
     val peerIp: String = "",
+    val selectedRelayConfigId: String = "default"
 )
