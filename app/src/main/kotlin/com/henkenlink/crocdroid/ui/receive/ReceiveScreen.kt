@@ -113,7 +113,7 @@ fun ReceiveScreen(
                                     OutlinedTextField(
                                         value = code,
                                         onValueChange = {
-                                            val sanitized = it.trim().replace(" ", "-")
+                                            val sanitized = it.replace(" ", "-")
                                             viewModel.updateReceiveCode(sanitized)
                                         },
                                         label = { Text("Transfer Code") },

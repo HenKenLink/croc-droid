@@ -368,70 +368,52 @@ func ReceiveFile(id string, code string, saveDir string, configJSON string, cb C
 			chdirMutex.Unlock()
 		}()
 
-		// Loop to retry and ignore the "ping" error (unexpected end of JSON input)
-		// which happens if the room is empty on the relay.
-		for i := 0; i < 60; i++ { // Try for ~60 seconds
-			client, err := croc.NewCtx(ctx, opts)
-			if err != nil {
-				cb.OnError("Init error: " + err.Error())
-				return
-			}
-
-			cb.OnReady(code)
-			
-			donechan := make(chan bool)
-			go func() {
-				ticker := time.NewTicker(time.Millisecond * 100)
-				defer ticker.Stop()
-				for {
-					select {
-					case <-ticker.C:
-						if client != nil && client.Step2FileInfoTransferred {
-							cnum := client.FilesToTransferCurrentNum
-							if cnum < len(client.FilesToTransfer) {
-								fi := client.FilesToTransfer[cnum]
-								cb.OnFileProgress(fi.Name, int64(cnum), int64(len(client.FilesToTransfer)), client.TotalSent, fi.Size)
-							}
-						}
-					case <-donechan:
-						return
-					}
-				}
-			}()
-
-			err = client.Receive()
-			close(donechan)
-			
-			// Close connections using reflection to prevent leaks
-			closeClient(client)
-
-			if err == nil {
-				fileNames := []string{}
-				for _, fi := range client.FilesToTransfer {
-					fileNames = append(fileNames, fi.Name)
-				}
-				fileListJSON, _ := json.Marshal(fileNames)
-				cb.OnSuccessWithFiles(string(fileListJSON))
-				return
-			}
-
-			// Check if it's the specific error caused by relay pings
-			if strings.Contains(err.Error(), "unexpected end of JSON input") || 
-			   strings.Contains(err.Error(), "room (secure channel) not ready") {
-				// Retry after a short delay
-				select {
-				case <-ctx.Done():
-					cb.OnError("Cancelled")
-					return
-				case <-time.After(1 * time.Second):
-					continue
-				}
-			}
-
-			// Otherwise, it's a real error
-			cb.OnError("Receive error: " + err.Error())
+		client, err := croc.NewCtx(ctx, opts)
+		if err != nil {
+			cb.OnError("Init error: " + err.Error())
 			return
 		}
+
+		cb.OnReady(code)
+		
+		donechan := make(chan bool)
+		go func() {
+			ticker := time.NewTicker(time.Millisecond * 100)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					if client != nil && client.Step2FileInfoTransferred {
+						cnum := client.FilesToTransferCurrentNum
+						if cnum < len(client.FilesToTransfer) {
+							fi := client.FilesToTransfer[cnum]
+							cb.OnFileProgress(fi.Name, int64(cnum), int64(len(client.FilesToTransfer)), client.TotalSent, fi.Size)
+						}
+					}
+				case <-donechan:
+					return
+				}
+			}
+		}()
+
+		err = client.Receive()
+		close(donechan)
+		
+		// Close connections using reflection to prevent leaks
+		closeClient(client)
+
+		if err == nil {
+			fileNames := []string{}
+			for _, fi := range client.FilesToTransfer {
+				fileNames = append(fileNames, fi.Name)
+			}
+			fileListJSON, _ := json.Marshal(fileNames)
+			cb.OnSuccessWithFiles(string(fileListJSON))
+			return
+		}
+
+		// Report error
+		cb.OnError("Receive error: " + err.Error())
 	}()
 }
 // GetDebugLog returns the current log buffer

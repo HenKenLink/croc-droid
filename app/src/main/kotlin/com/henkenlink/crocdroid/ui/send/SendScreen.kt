@@ -116,7 +116,10 @@ fun SendScreen(
                             if (showCustomCode) {
                                 OutlinedTextField(
                                     value = customCode,
-                                    onValueChange = { viewModel.updateCustomCode(it) },
+                                    onValueChange = { 
+                                        val sanitized = it.replace(" ", "-")
+                                        viewModel.updateCustomCode(sanitized)
+                                    },
                                     label = { Text("Custom Code (Optional)") },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
