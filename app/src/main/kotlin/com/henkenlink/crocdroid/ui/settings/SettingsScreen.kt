@@ -59,18 +59,64 @@ fun SettingsScreen(
         ) {
             // --- Connection / Relay ---
             SettingsCard(title = "Relay & Connection", icon = Icons.Default.Router) {
-                // Read-only display of selected config
+                // Active relay configuration with details
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Active Relay Configuration",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onNavigateToRelayConfig) {
+                        Icon(Icons.Default.Edit, contentDescription = "Change")
+                    }
+                }
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Display config name
                 OutlinedTextField(
                     value = selectedConfig?.name ?: "None",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Active Relay Configuration") },
-                    modifier = Modifier.fillMaxWidth(),
-                    trailingIcon = {
-                        IconButton(onClick = onNavigateToRelayConfig) {
-                            Icon(Icons.Default.Edit, contentDescription = "Change")
-                        }
-                    }
+                    label = { Text("Profile Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Display relay address
+                OutlinedTextField(
+                    value = selectedConfig?.relayAddress ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Relay Address") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Display relay ports
+                OutlinedTextField(
+                    value = selectedConfig?.relayPorts ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Relay Ports") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Display relay password (masked)
+                OutlinedTextField(
+                    value = selectedConfig?.relayPassword?.let { "•".repeat(it.length) } ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Relay Password") },
+                    modifier = Modifier.fillMaxWidth()
                 )
                 
                 Spacer(Modifier.height(16.dp))

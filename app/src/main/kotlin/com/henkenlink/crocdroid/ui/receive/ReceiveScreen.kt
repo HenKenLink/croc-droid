@@ -49,7 +49,24 @@ fun ReceiveScreen(
         }
     }
 
-    Scaffold(modifier = modifier.fillMaxSize()) { innerPadding ->
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = {
+            if (transferState is TransferState.Idle) {
+                TopAppBar(
+                    title = { Text("Receive Files") },
+                    actions = {
+                        IconButton(onClick = onNavigateToHistory) {
+                            Icon(Icons.Default.History, contentDescription = "View History")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
+                )
+            }
+        }
+    ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -160,18 +177,6 @@ fun ReceiveScreen(
                                             Text("Receive")
                                         }
                                     }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            // History button
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End
-                            ) {
-                                IconButton(onClick = onNavigateToHistory) {
-                                    Icon(Icons.Default.History, contentDescription = "View History")
                                 }
                             }
                         }

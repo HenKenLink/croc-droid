@@ -193,10 +193,7 @@ class MainActivity : ComponentActivity() {
                             val viewModel: RelayViewModel = viewModel(
                                 factory = RelayViewModel.provideFactory(crocEngine, settingsRepository)
                             )
-                            RelayScreen(
-                                viewModel = viewModel,
-                                onNavigateToRelayConfig = { navController.navigate(RelayConfigRoute) }
-                            )
+                            RelayScreen(viewModel = viewModel)
                         }
                         composable<RelayConfigRoute> {
                             val viewModel: RelayConfigViewModel = viewModel(
