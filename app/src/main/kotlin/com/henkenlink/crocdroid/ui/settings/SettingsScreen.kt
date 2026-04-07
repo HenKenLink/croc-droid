@@ -122,7 +122,7 @@ fun SettingsScreen(
                     DropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        modifier = Modifier.widthIn(min = 200.dp, max = 400.dp)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         relayConfigs.forEach { config ->
                             DropdownMenuItem(
